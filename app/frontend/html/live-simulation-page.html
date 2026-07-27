@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BearingIQ — Live Simulation (standalone preview)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* =========================================================================
+   HOW TO USE THIS FILE
+   1) Open it directly in your browser to PREVIEW the new page on its own.
+   2) When you're happy, copy the four marked blocks into your main
+      BearingIQ_complete.html:
+        BLOCK A -> paste inside your existing <style> tag (anywhere)
+        BLOCK B -> paste as a new <div class="nav-item" ...> in the sidebar
+                   (right before the "Predict" or "ML Predictor" nav-item)
+        BLOCK C -> paste as a new <div class="page" id="page-simulation">
+                   section, alongside your other page-* divs
+        BLOCK D -> paste inside your existing <script>, just before the
+                   "BOOT" section (call initSimulation() in DOMContentLoaded)
+   3) Add 'simulation' to TOPBAR_META in your main file:
+        simulation: {title:'Live Fault Simulation', crumb:'BearingIQ → Live Simulation'},
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#F0F4FF;--surf:#fff;--surf2:#F8FAFF;--brd:#E2E8F8;--brd2:#C7D2FE;
+  --pri:#4F46E5;--pril:#EEF2FF;--prid:#3730A3;
+  --green:#10B981;--greenl:#D1FAE5;--yellow:#F59E0B;--yellowl:#FEF3C7;
+  --orange:#F97316;--red:#EF4444;--redl:#FEE2E2;
+  --violet:#8B5CF6;--blue:#3B82F6;
+  --tx:#0F172A;--muted:#64748B;--light:#94A3B8;
+  --r:12px;--rl:18px;--rx:24px;
+  --sh:0 1px 3px rgba(79,70,229,.07),0 1px 2px rgba(0,0,0,.05);
+  --shm:0 4px 16px rgba(79,70,229,.10),0 2px 4px rgba(0,0,0,.06);
+  --shl:0 8px 32px rgba(79,70,229,.14),0 4px 8px rgba(0,0,0,.08);
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;display:flex}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:3px}
+
+/* SIDEBAR CSS */
+:root { --sw: 256px; }
+.sidebar{width:var(--sw);min-height:100vh;background:var(--surf);
+  border-right:2px solid var(--brd);position:fixed;left:0;top:0;
+  display:flex;flex-direction:column;z-index:100;box-shadow:var(--sh)}
+.sidebar-logo{padding:1.5rem;border-bottom:2px solid var(--brd);display:flex;align-items:center;gap:.75rem}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--pri),#7C3AED);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(79,70,229,.35)}
+.logo-name{font-weight:800;font-size:1.05rem;background:linear-gradient(135deg,var(--pri),#7C3AED);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block}
+.logo-sub{font-size:.62rem;color:var(--muted);font-weight:600;letter-spacing:.5px}
+.sidebar-nav{flex:1;padding:.75rem;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-label{font-size:.62rem;font-weight:700;color:var(--light);letter-spacing:1px;text-transform:uppercase;padding:.75rem .75rem .4rem}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border-radius:var(--r);
+  font-size:.82rem;font-weight:500;color:var(--muted);transition:all .15s;
+  border-left:3px solid transparent;cursor:pointer;user-select:none}
+.nav-item:hover{background:var(--pril);color:var(--pri);border-left-color:var(--pri)}
+.nav-item.active{background:var(--pril);color:var(--pri);border-left-color:var(--pri);font-weight:700}
+.nav-item-icon{font-size:1rem;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--pri);color:#fff;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:20px}
+.sidebar-footer{padding:1rem 1.5rem;border-top:2px solid var(--brd);font-size:.72rem;color:var(--light)}
+.sidebar-footer strong{display:block;color:var(--muted);font-size:.75rem;margin-bottom:2px}
+
+/* MAIN */
+.main-wrap{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden}
+.topbar{background:var(--surf);border-bottom:2px solid var(--brd);padding:0 2rem;height:62px;
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh)}
+.topbar-title{font-size:1.05rem;font-weight:700}
+.topbar-crumb{font-size:.75rem;color:var(--muted)}
+.content{padding:2rem;max-width:1400px;margin:0 auto;width:100%}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.55rem 1.1rem;border-radius:var(--r);
+  font-size:.8rem;font-weight:600;transition:all .15s;border:2px solid transparent;cursor:pointer}
+.btn-ghost{background:var(--surf2);color:var(--muted);border-color:var(--brd)}
+.btn-ghost:hover{background:var(--brd);color:var(--tx)}
+.btn-sm{padding:.35rem .85rem;font-size:.72rem}
+
+/* =====================  BLOCK A  — CSS  ===================== */
+.sim-hero{background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 50%,#2563EB 100%);
+  border-radius:var(--rx);padding:2.5rem 3rem;color:#fff;position:relative;overflow:hidden;
+  margin-bottom:1.5rem;box-shadow:0 8px 32px rgba(79,70,229,.35)}
+.sim-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:280px;height:280px;
+  background:rgba(255,255,255,.08);border-radius:50%}
+.sim-hero-tag{display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 14px;font-size:.72rem;
+  font-weight:700;letter-spacing:.5px;margin-bottom:1rem}
+.sim-hero h1{font-size:2.1rem;font-weight:900;letter-spacing:-1px;margin-bottom:.6rem}
+.sim-hero p{font-size:.9rem;opacity:.88;max-width:620px;line-height:1.6}
+
+/* ---- whole-page alarm vignette (blinking red wash) ---- */
+.sim-alarm-vignette{position:fixed;inset:0;pointer-events:none;z-index:999;
+  background:radial-gradient(ellipse at center, rgba(239,68,68,0) 55%, rgba(239,68,68,.35) 100%);
+  opacity:0;transition:opacity .25s}
+.sim-alarm-vignette.on{animation:simVignettePulse 1s infinite}
+@keyframes simVignettePulse{0%,100%{opacity:.15}50%{opacity:.6}}
+
+/* ---- top sliding critical alert banner ---- */
+.sim-alert-banner{position:relative;max-height:0;overflow:hidden;transition:max-height .35s ease;
+  border-radius:var(--rl);margin-bottom:0}
+.sim-alert-banner.on{max-height:220px;margin-bottom:1.5rem}
+.sim-alert-inner{background:linear-gradient(135deg,#EF4444,#B91C1C);color:#fff;border-radius:var(--rl);
+  padding:1.1rem 1.5rem;display:flex;gap:1rem;align-items:center;box-shadow:0 10px 30px rgba(239,68,68,.45);
+  border:2px solid #FCA5A5}
+.sim-alert-banner.on .sim-alert-inner{animation:simAlertFlash 1s infinite}
+@keyframes simAlertFlash{0%,100%{box-shadow:0 10px 30px rgba(239,68,68,.45)}50%{box-shadow:0 10px 50px rgba(239,68,68,.85)}}
+.sim-alert-ic{font-size:2.1rem;flex-shrink:0;animation:simSiren .6s infinite}
+@keyframes simSiren{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+.sim-alert-title{font-weight:900;font-size:1rem;letter-spacing:.5px;text-transform:uppercase}
+.sim-alert-sub{font-size:.8rem;opacity:.95;margin-top:2px;line-height:1.5}
+.sim-alert-loc{display:inline-block;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);
+  padding:1px 9px;border-radius:20px;font-size:.68rem;font-weight:800;margin-left:6px}
+
+/* ---- layout ---- */
+.sim-grid{display:grid;grid-template-columns:300px 1fr;gap:1.5rem;align-items:start}
+.sim-card{background:var(--surf);border-radius:var(--rl);border:2px solid var(--brd);box-shadow:var(--sh);
+  overflow:hidden;transition:border-color .3s, box-shadow .3s}
+.sim-card.alarm{border-color:var(--red);box-shadow:0 0 0 4px rgba(239,68,68,.12),var(--shm)}
+.sim-card-hd{padding:1rem 1.25rem;border-bottom:2px solid var(--brd);font-weight:700;font-size:.86rem;
+  display:flex;align-items:center;justify-content:space-between}
+.sim-card-body{padding:1.25rem}
+
+/* ---- control deck ---- */
+.sim-fault-opt{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.1rem}
+.sim-fopt{display:flex;align-items:center;gap:.65rem;padding:.65rem .8rem;border-radius:var(--r);
+  border:2px solid var(--brd);background:var(--surf2);cursor:pointer;transition:all .15s}
+.sim-fopt:hover{border-color:var(--brd2)}
+.sim-fopt.active{border-color:var(--fc,var(--pri));background:color-mix(in srgb, var(--fc,var(--pri)) 10%, white)}
+.sim-fopt-dot{width:11px;height:11px;border-radius:50%;background:var(--fc,var(--pri));flex-shrink:0;box-shadow:0 0 6px var(--fc,var(--pri))}
+.sim-fopt-txt{display:flex;flex-direction:column}
+.sim-fopt-lbl{font-size:.8rem;font-weight:700}
+.sim-fopt-loc{font-size:.65rem;color:var(--muted);font-family:var(--mono)}
+
+.sim-big-btn{width:100%;padding:1rem;border-radius:var(--rl);font-weight:800;font-size:.92rem;
+  color:#fff;letter-spacing:.3px;transition:all .2s;box-shadow:var(--shm);position:relative;overflow:hidden}
+.sim-big-btn.inject{background:linear-gradient(135deg,#EF4444,#B91C1C)}
+.sim-big-btn.inject:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(239,68,68,.4)}
+.sim-big-btn.restore{background:linear-gradient(135deg,#10B981,#059669)}
+.sim-big-btn.restore:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(16,185,129,.4)}
+
+.sim-mute{display:flex;align-items:center;justify-content:space-between;margin-top:.9rem;
+  font-size:.72rem;color:var(--muted);font-weight:600}
+.sim-toggle{width:38px;height:21px;border-radius:20px;background:var(--brd2);position:relative;cursor:pointer;transition:.2s}
+.sim-toggle.on{background:var(--pri)}
+.sim-toggle::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;
+  top:2.5px;left:2.5px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sim-toggle.on::after{left:19.5px}
+
+.sim-status-pill{display:inline-flex;align-items:center;gap:.45rem;padding:5px 12px;border-radius:20px;
+  font-size:.7rem;font-weight:800;border:1.5px solid;margin-top:1rem;width:100%;justify-content:center}
+.sim-status-pill.healthy{background:var(--greenl);color:#065F46;border-color:#6EE7B7}
+.sim-status-pill.fault{background:var(--redl);color:#991B1B;border-color:#FCA5A5;animation:simPillPulse 1s infinite}
+@keyframes simPillPulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* ---- motor zoom visual ---- */
+.sim-motor-wrap{position:relative;height:300px;background:linear-gradient(180deg,#F8FAFF,#EEF2FF);
+  border-radius:var(--rl);border:2px solid var(--brd);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.sim-motor-outer{display:flex;align-items:center;gap:6px;transition:transform .9s cubic-bezier(.4,0,.2,1), opacity .6s;
+  transform-origin:var(--zo-x,50%) center}
+.sim-motor-wrap.zoomed .sim-motor-outer{transform:scale(2.6) translateX(var(--zo-shift,0px));opacity:0}
+.sim-motor-seg{width:90px;height:140px;border-radius:14px;background:linear-gradient(145deg,#CBD5E1,#94A3B8);
+  border:2px solid #64748B;position:relative;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px}
+.sim-motor-seg.fe{border-radius:14px 4px 4px 14px}
+.sim-motor-seg.de{border-radius:4px 14px 14px 4px}
+.sim-motor-seg.ctr{width:120px;height:120px;border-radius:50%;background:linear-gradient(145deg,#94A3B8,#64748B)}
+.sim-motor-seg span{font-size:.62rem;font-weight:800;color:#fff;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:10px}
+.sim-motor-seg.target{animation:simSegGlow 1s infinite}
+@keyframes simSegGlow{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.7)}50%{box-shadow:0 0 0 14px rgba(239,68,68,0)}}
+.sim-motor-base{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:.62rem;
+  font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sim-motor-base .dot{width:7px;height:7px;border-radius:50%;background:var(--brd2)}
+.sim-motor-base .dot.target{background:var(--red);box-shadow:0 0 6px var(--red);animation:simPillPulse 1s infinite}
+
+.sim-zoom-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  opacity:0;transform:scale(.4);transition:opacity .5s .35s, transform .6s .35s cubic-bezier(.4,0,.2,1);pointer-events:none}
+.sim-motor-wrap.zoomed .sim-zoom-inner{opacity:1;transform:scale(1)}
+.sim-zoom-ring{position:absolute;width:210px;height:210px;border-radius:50%;border:2px dashed var(--red);opacity:.5;
+  animation:simRingSpin 6s linear infinite}
+@keyframes simRingSpin{to{transform:rotate(360deg)}}
+.sim-zoom-loc-badge{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;
+  font-size:.68rem;font-weight:800;padding:4px 14px;border-radius:20px;box-shadow:0 4px 10px rgba(239,68,68,.4);letter-spacing:.5px}
+
+/* ---- 3D bearing (reused / upgraded) ---- */
+.sim-bearing-3d-wrap{width:160px;height:160px;perspective:600px}
+.sim-bearing-3d{width:160px;height:160px;position:relative;transform-style:preserve-3d;
+  animation:simBearingSpin 3s linear infinite;transition:transform .6s}
+.sim-motor-wrap.zoomed .sim-bearing-3d{animation-duration:9s;transform:scale(1.12)}
+@keyframes simBearingSpin{from{transform:rotateX(20deg) rotateZ(0)}to{transform:rotateX(20deg) rotateZ(360deg)}}
+.sim-b-outer{position:absolute;inset:0;border-radius:50%;border:16px solid var(--pri);
+  box-shadow:0 0 22px rgba(79,70,229,.45),inset 0 0 14px rgba(79,70,229,.25);transition:border-color .3s, box-shadow .3s}
+.sim-b-inner{position:absolute;inset:40px;border-radius:50%;border:13px solid var(--blue);
+  box-shadow:0 0 16px rgba(59,130,246,.4);transition:border-color .3s, box-shadow .3s}
+.sim-b-shaft{position:absolute;inset:64px;border-radius:50%;background:radial-gradient(circle,#E0E7FF,#A5B4FC)}
+.sim-b-balls{position:absolute;inset:0;border-radius:50%;animation:simBallsSpin 1.6s linear infinite}
+@keyframes simBallsSpin{to{transform:rotate(360deg)}}
+.sim-b-ball{position:absolute;width:15px;height:15px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fff,#C7D2FE);top:50%;left:50%;transform-origin:0 0}
+.sim-b-ball.faulty{background:radial-gradient(circle at 35% 35%,#FCA5A5,#EF4444);box-shadow:0 0 10px #EF4444;
+  animation:simFaultBallPulse .5s infinite}
+@keyframes simFaultBallPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.6)}}
+.sim-motor-wrap.fault-or .sim-b-outer{border-color:var(--red);box-shadow:0 0 26px rgba(239,68,68,.7),inset 0 0 14px rgba(239,68,68,.4);animation:simFaultBallPulse .5s infinite}
+.sim-motor-wrap.fault-ir .sim-b-inner{border-color:var(--red);box-shadow:0 0 22px rgba(239,68,68,.7);animation:simFaultBallPulse .5s infinite}
+.sim-motor-wrap.healthy .sim-b-outer{border-color:var(--green);box-shadow:0 0 18px rgba(16,185,129,.4)}
+.sim-motor-wrap.healthy .sim-b-inner{border-color:var(--green);box-shadow:0 0 14px rgba(16,185,129,.3)}
+
+/* ---- telemetry gauges ---- */
+.sim-gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.sim-gauge{background:var(--surf2);border:2px solid var(--brd);border-radius:var(--r);padding:1rem;text-align:center;
+  transition:border-color .3s}
+.sim-gauge.warn{border-color:var(--orange)}
+.sim-gauge.crit{border-color:var(--red);animation:simPillPulse 1s infinite}
+.sim-gauge-lbl{font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem}
+.sim-gauge-val{font-size:1.5rem;font-weight:900;font-family:var(--mono);color:var(--tx)}
+.sim-gauge-unit{font-size:.62rem;color:var(--light)}
+.sim-gauge-bar{height:5px;background:var(--brd);border-radius:99px;margin-top:.5rem;overflow:hidden}
+.sim-gauge-fill{height:100%;border-radius:99px;transition:width .3s, background .3s}
+
+/* ---- ML confidence radial ---- */
+.sim-conf-wrap{display:flex;align-items:center;gap:1rem}
+.sim-conf-ring{width:74px;height:74px;border-radius:50%;flex-shrink:0;
+  background:conic-gradient(var(--cc,var(--green)) calc(var(--cp,0)*1%), var(--brd) 0);
+  display:flex;align-items:center;justify-content:center;transition:background .3s}
+.sim-conf-ring::after{content:attr(data-pct);width:58px;height:58px;border-radius:50%;background:var(--surf);
+  display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85rem;font-family:var(--mono);color:var(--tx)}
+
+/* ---- knowledge / cause cards ---- */
+.sim-cause-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.25rem}
+.sim-cause-card{border-radius:var(--r);padding:1rem;border-left:4px solid var(--brd2);background:var(--surf2);
+  transition:all .2s}
+.sim-cause-card.active{border-left-color:var(--red);background:var(--redl)}
+.sim-cause-title{font-size:.78rem;font-weight:800;margin-bottom:.3rem}
+.sim-cause-body{font-size:.72rem;color:var(--muted);line-height:1.55}
+
+.sim-rul{display:flex;align-items:center;justify-content:space-between;background:var(--surf2);
+  border:2px solid var(--brd);border-radius:var(--r);padding:.85rem 1.1rem;margin-top:1rem}
+.sim-rul.crit{border-color:var(--red);background:var(--redl)}
+.sim-rul-lbl{font-size:.72rem;font-weight:700;color:var(--muted)}
+.sim-rul-val{font-size:1.1rem;font-weight:900;font-family:var(--mono)}
+
+@media(max-width:1000px){.sim-grid{grid-template-columns:1fr}.sim-gauges,.sim-cause-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR --><script src="../js/sidebar.js"></script>
+
+<div class="main-wrap">
+<!-- TOPBAR -->
+<header class="topbar">
+  <div>
+    <div class="topbar-title">⚡ Live Simulation</div>
+    <div class="topbar-crumb">BearingIQ → Live Simulation</div>
+  </div>
+  <div class="topbar-right">
+    <a href="BearingIQ_complete.html" class="btn btn-ghost btn-sm">← Dashboard</a>
+  </div>
+</header>
+
+<div class="content">
+
+<div class="sim-alarm-vignette" id="sim-vignette"></div>
+
+<!-- =====================  BLOCK C  — PAGE MARKUP  ===================== -->
+<div class="page" id="page-simulation">
+
+  <div class="sim-hero">
+    <div class="sim-hero-tag">⚡ Live Command Center</div>
+    <h1>Real-Time Fault Simulation</h1>
+    <p>Inject a live bearing defect and watch the physical model, signal, and AI confidence react in real time — exactly like a real industrial monitoring console.</p>
+  </div>
+
+  <div class="sim-alert-banner" id="sim-alert-banner">
+    <div class="sim-alert-inner">
+      <div class="sim-alert-ic">🚨</div>
+      <div style="flex:1">
+        <div class="sim-alert-title">Critical Alert — <span id="sim-alert-fault">—</span><span class="sim-alert-loc" id="sim-alert-loc">—</span></div>
+        <div class="sim-alert-sub" id="sim-alert-cause">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sim-grid">
+
+    <!-- CONTROL DECK -->
+    <div class="sim-card" id="sim-control-card">
+      <div class="sim-card-hd">🎛 Control Deck</div>
+      <div class="sim-card-body">
+        <div style="font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.6rem">Select fault to simulate</div>
+        <div class="sim-fault-opt" id="sim-fault-opts"></div>
+
+        <button class="sim-big-btn inject" id="sim-toggle-btn" onclick="simToggle()">🚨 Inject Defect</button>
+
+        <div class="sim-status-pill healthy" id="sim-status-pill">✅ Bearing Healthy</div>
+
+        <div class="sim-mute">
+          <span>🔊 Alarm sound</span>
+          <div class="sim-toggle on" id="sim-sound-toggle" onclick="simToggleSound()"></div>
+        </div>
+
+        <div class="sim-rul" id="sim-rul">
+          <span class="sim-rul-lbl">⏳ Est. Remaining Life</span>
+          <span class="sim-rul-val" id="sim-rul-val" style="color:var(--green)">∞</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <!-- MOTOR ZOOM -->
+        <div class="sim-card" id="sim-motor-card">
+          <div class="sim-card-hd">🔍 Motor Cutaway — Live Location</div>
+          <div class="sim-card-body">
+            <div class="sim-motor-wrap healthy" id="sim-motor-wrap">
+              <div class="sim-motor-outer" id="sim-motor-outer">
+                <div class="sim-motor-seg fe" id="seg-fe"><span>FE</span></div>
+                <div class="sim-motor-seg ctr"></div>
+                <div class="sim-motor-seg de" id="seg-de"><span>DE</span></div>
+              </div>
+              <div class="sim-motor-base"><div class="dot" id="dot-ba"></div> Base (BA) mount</div>
+              <div class="sim-zoom-inner" id="sim-zoom-inner">
+                <div class="sim-zoom-loc-badge" id="sim-zoom-badge">DRIVE END</div>
+                <div class="sim-zoom-ring"></div>
+                <div class="sim-bearing-3d-wrap">
+                  <div class="sim-bearing-3d">
+                    <div class="sim-b-outer"></div>
+                    <div class="sim-b-inner"></div>
+                    <div class="sim-b-shaft"></div>
+                    <div class="sim-b-balls" id="sim-balls"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ML CONFIDENCE -->
+        <div class="sim-card">
+          <div class="sim-card-hd">🤖 AI Diagnosis Confidence</div>
+          <div class="sim-card-body">
+            <div class="sim-conf-wrap">
+              <div class="sim-conf-ring" id="sim-conf-ring" style="--cp:4;--cc:#10B981" data-pct="4%"></div>
+              <div>
+                <div style="font-size:.85rem;font-weight:800" id="sim-conf-cls">Normal</div>
+                <div style="font-size:.7rem;color:var(--muted);margin-top:2px">Centroid distance classifier</div>
+                <div style="font-size:.68rem;color:var(--light);margin-top:6px" id="sim-conf-note">Model is idle — waiting for anomaly</div>
+              </div>
+            </div>
+            <div class="sim-cause-grid" style="grid-template-columns:1fr;margin-top:1rem" id="sim-cause-single"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OSCILLOSCOPE -->
+      <div class="sim-card" id="sim-scope-card">
+        <div class="sim-card-hd">📡 Live Vibration Signal (Drive-End Accelerometer)</div>
+        <div class="sim-card-body">
+          <div style="height:200px"><canvas id="sim-scope-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- TELEMETRY -->
+      <div class="sim-card">
+        <div class="sim-card-hd">📊 Live Telemetry</div>
+        <div class="sim-card-body">
+          <div class="sim-gauges">
+            <div class="sim-gauge" id="g-rms"><div class="sim-gauge-lbl">RMS</div><div class="sim-gauge-val" id="v-rms">0.066</div><div class="sim-gauge-unit">g</div><div class="sim-gauge-bar"><div class="sim-gauge-fill" id="f-rms" style="width:5%;background:var(--green)"></div></div></div>
+            <div class="sim-gauge" id="g-kurt"><div class="sim-gauge-lbl">Kurtosis</div><div class="sim-gauge-val" id="v-kurt">2.95</div><div class="sim-gauge-unit">σ⁴</div><div class="sim-gauge-bar"><div class="sim-gauge-fill" id="f-kurt" style="width:10%;background:var(--green)"></div></div></div>
+            <div class="sim-gauge" id="g-crest"><div class="sim-gauge-lbl">Crest Factor</div><div class="sim-gauge-val" id="v-crest">3.0</div><div class="sim-gauge-unit">ratio</div><div class="sim-gauge-bar"><div class="sim-gauge-fill" id="f-crest" style="width:15%;background:var(--green)"></div></div></div>
+            <div class="sim-gauge" id="g-temp"><div class="sim-gauge-lbl">Bearing Temp</div><div class="sim-gauge-val" id="v-temp">42</div><div class="sim-gauge-unit">°C</div><div class="sim-gauge-bar"><div class="sim-gauge-fill" id="f-temp" style="width:30%;background:var(--green)"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KNOWLEDGE / CAUSES -->
+      <div class="sim-card">
+        <div class="sim-card-hd">📖 Root Cause Reference</div>
+        <div class="sim-card-body">
+          <div class="sim-cause-grid" id="sim-cause-grid"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================  BLOCK D  — JAVASCRIPT  =====================
+// (paste this whole block into your main <script>, before the BOOT section,
+//  and call initSimulation() once inside your existing DOMContentLoaded handler)
+
+const SIM_FAULTS = {
+  healthy:{label:'Healthy', icon:'✅', color:'#10B981', loc:'—', locLabel:'NO DEFECT',
+    cause:'No anomaly detected — bearing operating within nominal parameters.',
+    action:'Continue scheduled maintenance.', rul:'∞', rulColor:'#10B981',
+    spikeFreq:0, ballClass:'', segTarget:null},
+  ir:{label:'Inner Race Fault', icon:'🔴', color:'#8B5CF6', loc:'de', locLabel:'DRIVE END (DE)',
+    cause:'Likely cause: shaft misalignment or overload causing fatigue cracking on the rotating inner race.',
+    action:'Schedule replacement within 7–14 days. Reduce load 20–30%.', rul:'9 days', rulColor:'#F97316',
+    spikeFreq:55, ballClass:'inner'},
+  or:{label:'Outer Race Fault', icon:'🟠', color:'#3B82F6', loc:'ba', locLabel:'BASE MOUNT (BA)',
+    cause:'Likely cause: contamination or housing overload causing spalling on the stationary outer race.',
+    action:'Inspect housing & seals. Replace bearing within 7 days.', rul:'6 days', rulColor:'#F97316',
+    spikeFreq:38, ballClass:'outer'},
+  ball:{label:'Ball Fault', icon:'🟡', color:'#F59E0B', loc:'fe', locLabel:'FAN END (FE)',
+    cause:'Likely cause: poor lubrication or particle contamination pitting a rolling element.',
+    action:'Check lubrication immediately. Plan replacement within 14 days.', rul:'12 days', rulColor:'#F97316',
+    spikeFreq:47, ballClass:'ball'},
+};
+
+let simState = {active:false, fault:'ir', soundOn:true, t:0};
+let simScope = null;
+let simAudioCtx = null, simAudioInterval = null;
+const SIM_BUFFER_LEN = 90;
+let simBuf = Array.from({length:SIM_BUFFER_LEN}, ()=> (Math.random()-0.5)*0.15);
+
+function initSimulation(){
+  // fault option buttons
+  document.getElementById('sim-fault-opts').innerHTML = ['ir','or','ball'].map(k=>{
+    const f = SIM_FAULTS[k];
+    return `<div class="sim-fopt" data-k="${k}" style="--fc:${f.color}" onclick="simSelectFault('${k}')">
+      <div class="sim-fopt-dot"></div>
+      <div class="sim-fopt-txt"><span class="sim-fopt-lbl">${f.icon} ${f.label}</span>
+      <span class="sim-fopt-loc">Sensor: ${f.locLabel}</span></div>
+    </div>`;
+  }).join('');
+  simSelectFault('ir', true);
+
+  // cause reference cards (always visible, all 3 types)
+  document.getElementById('sim-cause-grid').innerHTML = ['ir','or','ball'].map(k=>{
+    const f = SIM_FAULTS[k];
+    return `<div class="sim-cause-card" id="cause-${k}" style="border-left-color:${f.color}">
+      <div class="sim-cause-title" style="color:${f.color}">${f.icon} ${f.label}</div>
+      <div class="sim-cause-body">${f.cause}</div>
+    </div>`;
+  }).join('');
+
+  // oscilloscope
+  const ctx = document.getElementById('sim-scope-chart');
+  simScope = new Chart(ctx, {
+    type:'line',
+    data:{labels:simBuf.map((_,i)=>i), datasets:[{
+      data:[...simBuf], borderColor:'#4F46E5', backgroundColor:'rgba(79,70,229,.08)',
+      borderWidth:1.6, pointRadius:0, fill:true, tension:.25
+    }]},
+    options:{responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{display:false}, y:{min:-2, max:2, grid:{color:'#E2E8F8'}, ticks:{color:'#94A3B8', font:{size:9}}}}}
+  });
+
+  setInterval(simTick, 60);
+}
+
+function simSelectFault(k, silent){
+  simState.fault = k;
+  document.querySelectorAll('.sim-fopt').forEach(el=>{
+    el.classList.toggle('active', el.dataset.k===k);
+  });
+}
+
+function simToggle(){
+  simState.active = !simState.active;
+  const btn = document.getElementById('sim-toggle-btn');
+  const pill = document.getElementById('sim-status-pill');
+  const banner = document.getElementById('sim-alert-banner');
+  const vignette = document.getElementById('sim-vignette');
+  const motorWrap = document.getElementById('sim-motor-wrap');
+  const controlCard = document.getElementById('sim-control-card');
+  const scopeCard = document.getElementById('sim-scope-card');
+  const f = SIM_FAULTS[simState.active ? simState.fault : 'healthy'];
+
+  document.querySelectorAll('.sim-cause-card').forEach(c=>c.classList.remove('active'));
+
+  if(simState.active){
+    btn.textContent = '✅ Restore Health';
+    btn.className = 'sim-big-btn restore';
+    pill.className = 'sim-status-pill fault';
+    pill.innerHTML = `🔴 ${f.label} — ACTIVE`;
+    banner.classList.add('on');
+    vignette.classList.add('on');
+    controlCard.classList.add('alarm');
+    scopeCard.classList.add('alarm');
+    document.getElementById('sim-alert-fault').textContent = f.label;
+    document.getElementById('sim-alert-loc').textContent = f.locLabel;
+    document.getElementById('sim-alert-cause').textContent = f.cause + ' ' + f.action;
+    document.getElementById('cause-'+simState.fault)?.classList.add('active');
+
+    motorWrap.className = 'sim-motor-wrap zoomed fault-'+simState.fault;
+    document.getElementById('sim-zoom-badge').textContent = f.locLabel;
+    document.getElementById('seg-de').classList.toggle('target', f.loc==='de');
+    document.getElementById('seg-fe').classList.toggle('target', f.loc==='fe');
+    document.getElementById('dot-ba').classList.toggle('target', f.loc==='ba');
+    document.getElementById('sim-motor-outer').style.setProperty('--zo-x', f.loc==='de'?'78%':f.loc==='fe'?'22%':'50%');
+
+    buildFaultBalls(f.ballClass);
+    document.getElementById('sim-rul').classList.add('crit');
+    document.getElementById('sim-rul-val').textContent = f.rul;
+    document.getElementById('sim-rul-val').style.color = f.rulColor;
+
+    if(simState.soundOn) simStartAlarm();
+    animateConfidence(true, f);
+  } else {
+    btn.textContent = '🚨 Inject Defect';
+    btn.className = 'sim-big-btn inject';
+    pill.className = 'sim-status-pill healthy';
+    pill.innerHTML = '✅ Bearing Healthy';
+    banner.classList.remove('on');
+    vignette.classList.remove('on');
+    controlCard.classList.remove('alarm');
+    scopeCard.classList.remove('alarm');
+    motorWrap.className = 'sim-motor-wrap healthy';
+    document.getElementById('seg-de').classList.remove('target');
+    document.getElementById('seg-fe').classList.remove('target');
+    document.getElementById('dot-ba').classList.remove('target');
+    buildFaultBalls(null);
+    document.getElementById('sim-rul').classList.remove('crit');
+    document.getElementById('sim-rul-val').textContent = '∞';
+    document.getElementById('sim-rul-val').style.color = 'var(--green)';
+    simStopAlarm();
+    animateConfidence(false, SIM_FAULTS.healthy);
+  }
+}
+
+function buildFaultBalls(faultyClass){
+  const n = 8;
+  let html = '';
+  for(let i=0;i<n;i++){
+    const isFaulty = faultyClass==='ball' && i===2;
+    html += `<div class="sim-b-ball ${isFaulty?'faulty':''}" style="transform:translate(-50%,-50%) rotate(${i*45}deg) translateX(58px)"></div>`;
+  }
+  document.getElementById('sim-balls').innerHTML = html;
+}
+
+function animateConfidence(active, f){
+  const ring = document.getElementById('sim-conf-ring');
+  const cls = document.getElementById('sim-conf-cls');
+  const note = document.getElementById('sim-conf-note');
+  let target = active ? 97 : 4;
+  let cur = parseFloat(ring.style.getPropertyValue('--cp')) || 4;
+  cls.textContent = f.label;
+  ring.style.setProperty('--cc', active ? '#EF4444' : '#10B981');
+  note.textContent = active ? 'Anomaly confirmed — generating maintenance advisory' : 'Model is idle — waiting for anomaly';
+  clearInterval(window.__simConfAnim);
+  window.__simConfAnim = setInterval(()=>{
+    cur += (target-cur)*0.18;
+    if(Math.abs(target-cur)<0.5){cur=target; clearInterval(window.__simConfAnim);}
+    ring.style.setProperty('--cp', cur.toFixed(0));
+    ring.setAttribute('data-pct', cur.toFixed(0)+'%');
+  }, 40);
+}
+
+function simToggleSound(){
+  simState.soundOn = !simState.soundOn;
+  document.getElementById('sim-sound-toggle').classList.toggle('on', simState.soundOn);
+  if(!simState.soundOn) simStopAlarm();
+  else if(simState.active) simStartAlarm();
+}
+
+// ---- synthetic siren via Web Audio API (no external mp3 needed) ----
+function simStartAlarm(){
+  if(simAudioInterval) return;
+  try{
+    simAudioCtx = simAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    let high = true;
+    const beep = ()=>{
+      const osc = simAudioCtx.createOscillator();
+      const gain = simAudioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = high ? 880 : 660;
+      gain.gain.value = 0.05;
+      osc.connect(gain).connect(simAudioCtx.destination);
+      osc.start(); osc.stop(simAudioCtx.currentTime + 0.28);
+      high = !high;
+    };
+    beep();
+    simAudioInterval = setInterval(beep, 320);
+  }catch(e){ /* audio blocked until user interacts with page — that's fine */ }
+}
+function simStopAlarm(){
+  clearInterval(simAudioInterval);
+  simAudioInterval = null;
+}
+
+// ---- rolling oscilloscope + telemetry tick ----
+function simTick(){
+  simState.t++;
+  let sample = (Math.random()-0.5) * 0.18;
+  if(simState.active){
+    const f = SIM_FAULTS[simState.fault];
+    const period = Math.max(4, Math.round(900 / f.spikeFreq));
+    if(simState.t % period === 0) sample = 1.4 + Math.random()*1.4;
+    else if(simState.t % period === 1) sample = -(1.1 + Math.random());
+    else sample = (Math.random()-0.5) * (0.45);
+  }
+  simBuf.shift(); simBuf.push(sample);
+  simScope.data.datasets[0].data = [...simBuf];
+  simScope.data.datasets[0].borderColor = simState.active ? '#EF4444' : '#4F46E5';
+  simScope.update('none');
+
+  // telemetry
+  const rms = Math.sqrt(simBuf.reduce((s,v)=>s+v*v,0)/simBuf.length);
+  const mean = simBuf.reduce((s,v)=>s+v,0)/simBuf.length;
+  const m4 = simBuf.reduce((s,v)=>s+Math.pow(v-mean,4),0)/simBuf.length;
+  const variance = simBuf.reduce((s,v)=>s+Math.pow(v-mean,2),0)/simBuf.length;
+  const kurt = variance>0 ? m4/(variance*variance) : 3;
+  const peak = Math.max(...simBuf.map(Math.abs));
+  const crest = rms>0 ? peak/rms : 0;
+  const temp = simState.active ? 42 + Math.min(38, simState.t%600/4) : 42;
+
+  setGauge('rms', rms.toFixed(3), rms, 0, 1.2);
+  setGauge('kurt', kurt.toFixed(2), kurt, 2, 12);
+  setGauge('crest', crest.toFixed(2), crest, 2, 9);
+  setGauge('temp', temp.toFixed(0), temp, 35, 95, true);
+}
+
+function setGauge(key, text, val, lo, hi, isTemp){
+  document.getElementById('v-'+key).textContent = text;
+  const pct = Math.max(3, Math.min(100, ((val-lo)/(hi-lo))*100));
+  const fill = document.getElementById('f-'+key);
+  const card = document.getElementById('g-'+key);
+  fill.style.width = pct+'%';
+  let color = '#10B981';
+  if(pct>40 && pct<=70) color='#F59E0B';
+  if(pct>70) color='#EF4444';
+  fill.style.background = color;
+  card.classList.remove('warn','crit');
+  if(pct>70) card.classList.add('crit'); else if(pct>40) card.classList.add('warn');
+}
+
+document.addEventListener('DOMContentLoaded', initSimulation);
+</script>
+
+<!-- =====================  BLOCK B (reference)  =====================
+<div class="nav-item" data-page="simulation">
+  <span class="nav-item-icon">⚡</span>Live Simulation
+  <span class="nav-badge" style="background:#EF4444;color:white">LIVE</span>
+</div>
+===================================================================== -->
+
+</div> <!-- /content -->
+</div> <!-- /main-wrap -->
+
+</body>
+</html>

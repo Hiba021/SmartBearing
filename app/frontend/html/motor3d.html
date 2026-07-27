@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motor 3D Viewer — BearingIQ</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    /* ── Motor 3D Page Styles ── */
+    .motor3d-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: var(--sp-6);
+      min-height: calc(100vh - 120px);
+    }
+    .motor-viewer-card {
+      background: var(--clr-surface);
+      border-radius: var(--r-lg);
+      border: 2px solid var(--clr-border);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    .motor-viewer-header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+      color: white;
+      padding: var(--sp-5) var(--sp-6);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .motor-viewer-title { font-size: 1.1rem; font-weight: 700; }
+    .motor-viewer-sub { font-size: .75rem; opacity: .75; margin-top: 2px; }
+    .motor-controls {
+      display: flex; gap: var(--sp-3);
+    }
+    .motor-ctrl-btn {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .motor-ctrl-btn:hover, .motor-ctrl-btn.active {
+      background: rgba(255,255,255,.3);
+    }
+    .motor-scene {
+      padding: var(--sp-8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 420px;
+      background: linear-gradient(180deg, #f0f4ff 0%, #e8ecff 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    /* ── 3D Motor SVG ── */
+    .motor-svg-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 680px;
+    }
+    .motor-svg-wrap svg {
+      width: 100%;
+      height: auto;
+      filter: drop-shadow(0 8px 24px rgba(79,70,229,.18));
+    }
+    .motor-component {
+      cursor: pointer;
+      transition: opacity .2s, transform .2s;
+      transform-origin: center;
+    }
+    .motor-component:hover { opacity: .85; }
+    .motor-component.selected { filter: brightness(1.15) drop-shadow(0 0 8px rgba(99,102,241,.6)); }
+    .component-label {
+      font-size: 11px;
+      font-weight: 700;
+      fill: #334155;
+      font-family: Inter, sans-serif;
+      pointer-events: none;
+    }
+    /* Label connector lines */
+    .connector-line { stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4,3; fill: none; }
+    /* ── Info Panel ── */
+    .info-panel-card {
+      background: var(--clr-surface);
+      border-radius: var(--r-lg);
+      border: 2px solid var(--clr-border);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+    }
+    .info-panel-header {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      padding: var(--sp-5) var(--sp-6);
+      border-radius: var(--r-md) var(--r-md) 0 0;
+    }
+    .info-panel-title { font-size: 1rem; font-weight: 700; }
+    .info-panel-sub { font-size: .72rem; opacity: .8; margin-top: 3px; }
+    .info-panel-body { padding: var(--sp-5); flex: 1; overflow-y: auto; }
+    .component-select-prompt {
+      text-align: center;
+      padding: var(--sp-10) var(--sp-4);
+      color: var(--clr-text-muted);
+    }
+    .component-select-prompt .prompt-icon { font-size: 3rem; margin-bottom: var(--sp-3); }
+    .comp-info-icon { font-size: 2.5rem; margin-bottom: var(--sp-3); text-align: center; }
+    .comp-info-name {
+      font-size: 1.2rem; font-weight: 800; color: var(--clr-text);
+      margin-bottom: var(--sp-2); text-align: center;
+    }
+    .comp-info-badge {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 700;
+      margin: 0 auto var(--sp-4) auto;
+      display: block;
+      width: fit-content;
+    }
+    .comp-info-desc {
+      font-size: .875rem;
+      color: var(--clr-text-muted);
+      line-height: 1.65;
+      margin-bottom: var(--sp-4);
+    }
+    .comp-info-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-4);
+    }
+    .comp-stat {
+      background: var(--clr-surface-2);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-3);
+      text-align: center;
+    }
+    .comp-stat-val { font-size: 1rem; font-weight: 800; color: var(--clr-primary); }
+    .comp-stat-lbl { font-size: .68rem; color: var(--clr-text-muted); margin-top: 2px; }
+    .comp-fault-section { margin-top: var(--sp-4); }
+    .comp-fault-title {
+      font-size: .75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+      color: var(--clr-text-muted); margin-bottom: var(--sp-2);
+    }
+    .comp-fault-tag {
+      display: inline-block;
+      margin: 3px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: .72rem;
+      font-weight: 600;
+      border: 1px solid currentColor;
+    }
+    /* ── Code Panel ── */
+    .code-panel {
+      margin-top: var(--sp-5);
+      background: var(--clr-surface);
+      border-radius: var(--r-lg);
+      border: 2px solid var(--clr-border);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    .code-tabs {
+      display: flex;
+      background: var(--clr-surface-2);
+      border-bottom: 2px solid var(--clr-border);
+    }
+    .code-tab {
+      padding: var(--sp-3) var(--sp-5);
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--clr-text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all .2s;
+    }
+    .code-tab.active {
+      color: var(--clr-primary);
+      border-bottom-color: var(--clr-primary);
+      background: white;
+    }
+    .code-body { display: none; padding: var(--sp-5); }
+    .code-body.active { display: block; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: var(--sp-5);
+      border-radius: var(--r-md);
+      font-family: var(--font-mono);
+      font-size: .78rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .kw { color: #818cf8; }
+    .cm { color: #64748b; font-style: italic; }
+    .str { color: #34d399; }
+    .num { color: #fb923c; }
+    .fn { color: #38bdf8; }
+    .code-desc {
+      font-size: .875rem;
+      color: var(--clr-text-muted);
+      line-height: 1.65;
+      margin-bottom: var(--sp-4);
+      padding: var(--sp-3);
+      background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+      border-radius: var(--r-md);
+      border-left: 4px solid var(--clr-primary);
+    }
+    /* Highlight box */
+    .highlight-box {
+      background: linear-gradient(135deg, #fef3c7, #fff7ed);
+      border: 2px solid #f59e0b;
+      border-radius: var(--r-md);
+      padding: var(--sp-4);
+      margin-top: var(--sp-4);
+      font-size: .82rem;
+      color: #92400e;
+    }
+    .highlight-box strong { color: #78350f; display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR --><script src="../js/sidebar.js"></script>
+
+<div class="main-wrapper">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Motor 3D Viewer & Code</div>
+        <div class="topbar-breadcrumb">BearingIQ → Motor 3D</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-sm btn-primary" onclick="window.location.href='predict.html'">🔮 Run Prediction</button>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="motor3d-layout">
+
+      <!-- Left: Motor viewer -->
+      <div>
+        <div class="motor-viewer-card">
+          <div class="motor-viewer-header">
+            <div>
+              <div class="motor-viewer-title">🔩 Electric Motor — Component Explorer</div>
+              <div class="motor-viewer-sub">CWRU Test Motor: 2 HP, 1797 RPM, 48 kHz accelerometer sampling</div>
+            </div>
+            <div class="motor-controls">
+              <button class="motor-ctrl-btn active" id="view-exploded" onclick="setView('exploded', this)">Exploded View</button>
+              <button class="motor-ctrl-btn" id="view-cross" onclick="setView('cross', this)">Cross Section</button>
+            </div>
+          </div>
+          <div class="motor-scene" id="motor-scene">
+            <!-- SVG Motor Diagram -->
+            <div class="motor-svg-wrap">
+              <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" id="motor-svg">
+                <!-- Background glow -->
+                <defs>
+                  <radialGradient id="motorGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#e0e7ff" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#c7d2fe" stop-opacity="0"/>
+                  </radialGradient>
+                  <filter id="shadow">
+                    <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.15)"/>
+                  </filter>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="blur"/>
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                </defs>
+                <rect width="700" height="360" fill="url(#motorGlow)" rx="12"/>
+
+                <!-- ═══════ MOTOR HOUSING / FRAME ═══════ -->
+                <g class="motor-component" id="comp-housing" onclick="selectComponent('housing')">
+                  <!-- Main body shell -->
+                  <rect x="120" y="100" width="460" height="160" rx="20" fill="#64748b" opacity="0.9" filter="url(#shadow)"/>
+                  <rect x="130" y="110" width="440" height="140" rx="16" fill="#94a3b8"/>
+                  <!-- Cooling fins -->
+                  <line x1="175" y1="110" x2="175" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="210" y1="110" x2="210" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="245" y1="110" x2="245" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="280" y1="110" x2="280" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="315" y1="110" x2="315" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="350" y1="110" x2="350" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="385" y1="110" x2="385" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="420" y1="110" x2="420" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="455" y1="110" x2="455" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="490" y1="110" x2="490" y2="250" stroke="#64748b" stroke-width="4"/>
+                  <line x1="525" y1="110" x2="525" y2="250" stroke="#64748b" stroke-width="4"/>
+                </g>
+
+                <!-- ═══════ STATOR WINDINGS ═══════ -->
+                <g class="motor-component" id="comp-stator" onclick="selectComponent('stator')">
+                  <ellipse cx="350" cy="180" rx="130" ry="60" fill="#dc2626" opacity="0.85" filter="url(#shadow)"/>
+                  <ellipse cx="350" cy="180" rx="110" ry="48" fill="#ef4444"/>
+                  <!-- Winding detail -->
+                  <ellipse cx="350" cy="180" rx="90" ry="38" fill="#fca5a5" opacity="0.6"/>
+                  <text x="350" y="185" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="Inter,sans-serif">STATOR</text>
+                </g>
+
+                <!-- ═══════ ROTOR ═══════ -->
+                <g class="motor-component" id="comp-rotor" onclick="selectComponent('rotor')">
+                  <ellipse cx="350" cy="180" rx="65" ry="30" fill="#f97316" opacity="0.9" filter="url(#shadow)"/>
+                  <ellipse cx="350" cy="180" rx="52" ry="22" fill="#fb923c"/>
+                  <text x="350" y="185" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="Inter,sans-serif">ROTOR</text>
+                </g>
+
+                <!-- ═══════ SHAFT ═══════ -->
+                <g class="motor-component" id="comp-shaft" onclick="selectComponent('shaft')">
+                  <rect x="80" y="172" width="540" height="16" rx="8" fill="#1d4ed8" filter="url(#shadow)"/>
+                  <rect x="80" y="174" width="540" height="8" rx="4" fill="#3b82f6" opacity="0.6"/>
+                  <!-- Drive end extension -->
+                  <rect x="600" y="170" width="50" height="20" rx="4" fill="#1e40af"/>
+                </g>
+
+                <!-- ═══════ DRIVE END BEARING (right) ═══════ -->
+                <g class="motor-component" id="comp-bearing-de" onclick="selectComponent('bearing-de')">
+                  <circle cx="555" cy="180" r="32" fill="#7c3aed" filter="url(#shadow)"/>
+                  <circle cx="555" cy="180" r="24" fill="#8b5cf6"/>
+                  <circle cx="555" cy="180" r="14" fill="#a78bfa"/>
+                  <circle cx="555" cy="180" r="7" fill="#4c1d95"/>
+                  <!-- Rolling elements -->
+                  <circle cx="555" cy="156" r="5" fill="#c4b5fd"/>
+                  <circle cx="574" cy="163" r="5" fill="#c4b5fd"/>
+                  <circle cx="574" cy="197" r="5" fill="#c4b5fd"/>
+                  <circle cx="555" cy="204" r="5" fill="#c4b5fd"/>
+                  <circle cx="536" cy="197" r="5" fill="#c4b5fd"/>
+                  <circle cx="536" cy="163" r="5" fill="#c4b5fd"/>
+                  <text x="555" y="247" text-anchor="middle" fill="#4c1d95" font-size="9" font-weight="700" font-family="Inter,sans-serif">DE BEARING</text>
+                </g>
+
+                <!-- ═══════ FAN END BEARING (left) ═══════ -->
+                <g class="motor-component" id="comp-bearing-fe" onclick="selectComponent('bearing-fe')">
+                  <circle cx="145" cy="180" r="32" fill="#0891b2" filter="url(#shadow)"/>
+                  <circle cx="145" cy="180" r="24" fill="#06b6d4"/>
+                  <circle cx="145" cy="180" r="14" fill="#67e8f9"/>
+                  <circle cx="145" cy="180" r="7" fill="#164e63"/>
+                  <!-- Rolling elements -->
+                  <circle cx="145" cy="156" r="5" fill="#a5f3fc"/>
+                  <circle cx="164" cy="163" r="5" fill="#a5f3fc"/>
+                  <circle cx="164" cy="197" r="5" fill="#a5f3fc"/>
+                  <circle cx="145" cy="204" r="5" fill="#a5f3fc"/>
+                  <circle cx="126" cy="197" r="5" fill="#a5f3fc"/>
+                  <circle cx="126" cy="163" r="5" fill="#a5f3fc"/>
+                  <text x="145" y="247" text-anchor="middle" fill="#164e63" font-size="9" font-weight="700" font-family="Inter,sans-serif">FE BEARING</text>
+                </g>
+
+                <!-- ═══════ FAN ═══════ -->
+                <g class="motor-component" id="comp-fan" onclick="selectComponent('fan')">
+                  <circle cx="90" cy="180" r="28" fill="#0f766e" opacity="0.85" filter="url(#shadow)"/>
+                  <!-- Fan blades -->
+                  <line x1="90" y1="180" x2="90" y2="155" stroke="#14b8a6" stroke-width="5" stroke-linecap="round"/>
+                  <line x1="90" y1="180" x2="113" y2="166" stroke="#14b8a6" stroke-width="5" stroke-linecap="round"/>
+                  <line x1="90" y1="180" x2="113" y2="194" stroke="#14b8a6" stroke-width="5" stroke-linecap="round"/>
+                  <line x1="90" y1="180" x2="90" y2="205" stroke="#14b8a6" stroke-width="5" stroke-linecap="round"/>
+                  <line x1="90" y1="180" x2="67" y2="194" stroke="#14b8a6" stroke-width="5" stroke-linecap="round"/>
+                  <line x1="90" y1="180" x2="67" y2="166" stroke="#14b8a6" stroke-width="5" stroke-linecap="round"/>
+                  <circle cx="90" cy="180" r="7" fill="#0d9488"/>
+                </g>
+
+                <!-- ═══════ END CAPS ═══════ -->
+                <g class="motor-component" id="comp-endcap" onclick="selectComponent('endcap')">
+                  <rect x="120" y="110" width="30" height="140" rx="6" fill="#475569" opacity="0.9"/>
+                  <rect x="550" y="110" width="30" height="140" rx="6" fill="#475569" opacity="0.9"/>
+                </g>
+
+                <!-- ═══════ ACCELEROMETER ═══════ -->
+                <g class="motor-component" id="comp-sensor" onclick="selectComponent('sensor')">
+                  <rect x="540" y="88" width="36" height="24" rx="5" fill="#059669" filter="url(#shadow)"/>
+                  <rect x="543" y="91" width="30" height="18" rx="3" fill="#10b981"/>
+                  <rect x="548" y="95" width="8" height="10" rx="2" fill="#d1fae5"/>
+                  <text x="558" y="102" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="Inter,sans-serif">ACCEL</text>
+                  <!-- Wire to housing -->
+                  <line x1="558" y1="112" x2="558" y2="110" stroke="#10b981" stroke-width="2"/>
+                </g>
+
+                <!-- ═══════ LABELS (connector lines) ═══════ -->
+                <!-- Housing label -->
+                <line x1="350" y1="100" x2="350" y2="70" class="connector-line"/>
+                <text x="350" y="62" text-anchor="middle" class="component-label">Housing / Frame</text>
+
+                <!-- Shaft label -->
+                <line x1="300" y1="172" x2="300" y2="148" class="connector-line"/>
+                <text x="300" y="140" text-anchor="middle" class="component-label">Shaft</text>
+
+                <!-- Stator label -->
+                <line x1="250" y1="180" x2="200" y2="295" class="connector-line"/>
+                <text x="178" y="305" text-anchor="middle" class="component-label">Stator Windings</text>
+
+                <!-- Rotor label -->
+                <line x1="395" y1="180" x2="440" y2="305" class="connector-line"/>
+                <text x="462" y="315" text-anchor="middle" class="component-label">Rotor (Squirrel Cage)</text>
+
+                <!-- Fan label -->
+                <line x1="90" y1="152" x2="90" y2="48" class="connector-line"/>
+                <text x="90" y="40" text-anchor="middle" class="component-label">Cooling Fan</text>
+
+                <!-- Sensor label -->
+                <line x1="592" y1="96" x2="640" y2="70" class="connector-line"/>
+                <text x="650" y="62" text-anchor="middle" class="component-label" font-size="10" fill="#059669">📡 Accelerometer</text>
+
+                <!-- Load arrow -->
+                <defs>
+                  <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L8,3 z" fill="#1d4ed8"/>
+                  </marker>
+                </defs>
+                <line x1="650" y1="180" x2="660" y2="180" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow)"/>
+                <text x="662" y="175" fill="#1d4ed8" font-size="9" font-weight="700" font-family="Inter,sans-serif">LOAD</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Component legend -->
+          <div style="padding: var(--sp-4) var(--sp-6); border-top: 2px solid var(--clr-border); background: var(--clr-surface-2); display: flex; flex-wrap: wrap; gap: var(--sp-3);">
+            <span style="font-size:.72rem;font-weight:700;color:var(--clr-text-muted);width:100%;margin-bottom:4px;">Click any component to inspect ↑</span>
+            <span class="comp-legend" onclick="selectComponent('housing')" style="background:#f1f5f9;border:2px solid #94a3b8;color:#475569">⬜ Housing</span>
+            <span class="comp-legend" onclick="selectComponent('stator')" style="background:#fee2e2;border:2px solid #ef4444;color:#991b1b">🔴 Stator</span>
+            <span class="comp-legend" onclick="selectComponent('rotor')" style="background:#ffedd5;border:2px solid #f97316;color:#9a3412">🟠 Rotor</span>
+            <span class="comp-legend" onclick="selectComponent('shaft')" style="background:#dbeafe;border:2px solid #3b82f6;color:#1e40af">🔵 Shaft</span>
+            <span class="comp-legend" onclick="selectComponent('bearing-de')" style="background:#ede9fe;border:2px solid #8b5cf6;color:#4c1d95">🟣 DE Bearing</span>
+            <span class="comp-legend" onclick="selectComponent('bearing-fe')" style="background:#cffafe;border:2px solid #06b6d4;color:#164e63">🩵 FE Bearing</span>
+            <span class="comp-legend" onclick="selectComponent('fan')" style="background:#ccfbf1;border:2px solid #14b8a6;color:#0f4c3a">🟢 Fan</span>
+            <span class="comp-legend" onclick="selectComponent('sensor')" style="background:#d1fae5;border:2px solid #10b981;color:#065f46">📡 Sensor</span>
+          </div>
+        </div>
+
+        <!-- Code Section -->
+        <div class="code-panel">
+          <div class="code-tabs">
+            <div class="code-tab active" onclick="switchCode('mikroc', this)">🖥️ MikroC (Embedded)</div>
+            <div class="code-tab" onclick="switchCode('python', this)">🐍 Python (Analysis)</div>
+            <div class="code-tab" onclick="switchCode('api', this)">🌐 REST API</div>
+          </div>
+          <div class="code-body active" id="code-mikroc">
+            <div class="code-desc">📟 This MikroC PRO for ARM code runs on a microcontroller connected to an ADXL345 accelerometer via I2C. It reads vibration data, computes RMS, and sends it via UART to the BearingIQ server.</div>
+            <pre><span class="cm">// BearingIQ — Embedded Sensor Acquisition</span>
+<span class="cm">// Platform: STM32F4 | MikroC PRO for ARM v7.x</span>
+<span class="cm">// Sensor  : ADXL345 Accelerometer (I2C)</span>
+
+<span class="kw">#define</span> SAMPLE_RATE   <span class="num">48000</span>   <span class="cm">// Hz - matches CWRU dataset</span>
+<span class="kw">#define</span> BUFFER_SIZE   <span class="num">1024</span>    <span class="cm">// samples per window</span>
+<span class="kw">#define</span> ADXL345_ADDR  <span class="num">0x53</span>    <span class="cm">// I2C slave address</span>
+<span class="kw">#define</span> DATA_FORMAT   <span class="num">0x31</span>    <span class="cm">// +/- 16g range, full res</span>
+
+<span class="kw">float</span> vibBuffer[BUFFER_SIZE];
+<span class="kw">float</span> features[<span class="num">9</span>];  <span class="cm">// max, min, mean, sd, rms, skew, kurt, crest, form</span>
+
+<span class="cm">// ── Initialize ADXL345 accelerometer ─────────────────</span>
+<span class="kw">void</span> <span class="fn">ADXL345_Init</span>() {
+    I2C1_Start();
+    I2C1_Write(<span class="num">0x2D</span>, <span class="num">0x08</span>);  <span class="cm">// Power CTL: measure mode</span>
+    I2C1_Write(DATA_FORMAT, <span class="num">0x0B</span>);  <span class="cm">// Full resolution, ±16g</span>
+    I2C1_Write(<span class="num">0x2C</span>, <span class="num">0x0F</span>);  <span class="cm">// BW_RATE: 3200 Hz ODR</span>
+    I2C1_Stop();
+}
+
+<span class="cm">// ── Read one Z-axis vibration sample ─────────────────</span>
+<span class="kw">float</span> <span class="fn">ReadAccelZ</span>() {
+    <span class="kw">uint8_t</span> data[<span class="num">2</span>];
+    <span class="kw">int16_t</span> raw;
+    I2C1_Start();
+    I2C1_Write(ADXL345_ADDR);
+    I2C1_Write(<span class="num">0x36</span>);  <span class="cm">// DATAZ0 register</span>
+    I2C1_Repeated_Start();
+    I2C1_Read(ADXL345_ADDR, data, <span class="num">2</span>, END_MODE_STOP);
+    raw = (data[<span class="num">1</span>] &lt;&lt; <span class="num">8</span>) | data[<span class="num">0</span>];
+    <span class="kw">return</span> raw * <span class="num">0.004f</span>;  <span class="cm">// Convert to g (4mg/LSB)</span>
+}
+
+<span class="cm">// ── Compute time-domain features ─────────────────────</span>
+<span class="kw">void</span> <span class="fn">ComputeFeatures</span>(<span class="kw">float</span>* buf, <span class="kw">int</span> n) {
+    <span class="kw">float</span> sum=<span class="num">0</span>, sumSq=<span class="num">0</span>, maxV=-<span class="num">9999</span>, minV=<span class="num">9999</span>;
+    <span class="kw">for</span>(<span class="kw">int</span> i=<span class="num">0</span>; i&lt;n; i++) {
+        sum   += buf[i];
+        sumSq += buf[i] * buf[i];
+        <span class="kw">if</span>(buf[i] &gt; maxV) maxV = buf[i];
+        <span class="kw">if</span>(buf[i] &lt; minV) minV = buf[i];
+    }
+    <span class="kw">float</span> mean = sum / n;
+    <span class="kw">float</span> rms  = sqrt(sumSq / n);
+    <span class="kw">float</span> sd   = sqrt((sumSq/n) - mean*mean);
+
+    <span class="cm">// Skewness and kurtosis (3rd & 4th moments)</span>
+    <span class="kw">float</span> m3=<span class="num">0</span>, m4=<span class="num">0</span>;
+    <span class="kw">for</span>(<span class="kw">int</span> i=<span class="num">0</span>; i&lt;n; i++) {
+        <span class="kw">float</span> d = buf[i] - mean;
+        m3 += d*d*d;
+        m4 += d*d*d*d;
+    }
+    <span class="kw">float</span> skew = (m3/n) / (sd*sd*sd);
+    <span class="kw">float</span> kurt = (m4/n) / (sd*sd*sd*sd) - <span class="num">3.0f</span>;
+
+    features[<span class="num">0</span>] = maxV;           <span class="cm">// max</span>
+    features[<span class="num">1</span>] = minV;           <span class="cm">// min</span>
+    features[<span class="num">2</span>] = mean;           <span class="cm">// mean</span>
+    features[<span class="num">3</span>] = sd;             <span class="cm">// sd</span>
+    features[<span class="num">4</span>] = rms;            <span class="cm">// rms</span>
+    features[<span class="num">5</span>] = skew;           <span class="cm">// skewness</span>
+    features[<span class="num">6</span>] = kurt;           <span class="cm">// kurtosis</span>
+    features[<span class="num">7</span>] = maxV / rms;     <span class="cm">// crest factor</span>
+    features[<span class="num">8</span>] = rms / mean;     <span class="cm">// form factor</span>
+}
+
+<span class="cm">// ── Send JSON to BearingIQ API via UART/WiFi ──────────</span>
+<span class="kw">void</span> <span class="fn">SendToAPI</span>() {
+    <span class="kw">char</span> json[<span class="num">256</span>];
+    sprintf(json,
+        <span class="str">"{\"features\":[%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f],\"model\":\"random_forest\"}"</span>,
+        features[<span class="num">0</span>], features[<span class="num">1</span>], features[<span class="num">2</span>],
+        features[<span class="num">3</span>], features[<span class="num">4</span>], features[<span class="num">5</span>],
+        features[<span class="num">6</span>], features[<span class="num">7</span>], features[<span class="num">8</span>]
+    );
+    UART1_Write_Text(json);  <span class="cm">// Send via WiFi module</span>
+}
+
+<span class="cm">// ── Main loop ─────────────────────────────────────────</span>
+<span class="kw">void</span> <span class="fn">main</span>() {
+    <span class="fn">ADXL345_Init</span>();
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        <span class="cm">// Acquire 1024 samples</span>
+        <span class="kw">for</span>(<span class="kw">int</span> i=<span class="num">0</span>; i&lt;BUFFER_SIZE; i++) {
+            vibBuffer[i] = <span class="fn">ReadAccelZ</span>();
+            Delay_us(<span class="num">21</span>);  <span class="cm">// ~48 kHz sampling rate</span>
+        }
+        <span class="fn">ComputeFeatures</span>(vibBuffer, BUFFER_SIZE);
+        <span class="fn">SendToAPI</span>();
+        Delay_ms(<span class="num">1000</span>);  <span class="cm">// Send every 1 second</span>
+    }
+}</pre>
+            <div class="highlight-box">
+              <strong>⚡ How it connects to BearingIQ:</strong>
+              The microcontroller sends JSON to a WiFi module (ESP8266/ESP32). The HTTP POST is directed to <code>http://&lt;server-ip&gt;:5000/api/predict</code>. The server returns the fault class in &lt;50ms, which the embedded system can display on an LCD or trigger an alarm relay.
+            </div>
+          </div>
+          <div class="code-body" id="code-python">
+            <div class="code-desc">🐍 This Python code loads the CWRU CSV data, computes features, and performs batch prediction — useful for offline analysis.</div>
+            <pre><span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> requests
+<span class="kw">from</span> scipy <span class="kw">import</span> stats
+
+<span class="cm"># Load raw vibration CSV</span>
+df = pd.<span class="fn">read_csv</span>(<span class="str">'archive/Bearing.csv'</span>)
+
+<span class="cm"># Features already extracted in the dataset</span>
+FEATURES = [<span class="str">'max'</span>, <span class="str">'min'</span>, <span class="str">'mean'</span>, <span class="str">'sd'</span>, <span class="str">'rms'</span>,
+            <span class="str">'skewness'</span>, <span class="str">'kurtosis'</span>, <span class="str">'crest'</span>, <span class="str">'form'</span>]
+
+<span class="cm"># Example: predict a single row</span>
+row = df.iloc[<span class="num">0</span>]
+features = [<span class="fn">float</span>(row[f]) <span class="kw">for</span> f <span class="kw">in</span> FEATURES]
+
+<span class="cm"># Call BearingIQ REST API</span>
+resp = requests.<span class="fn">post</span>(
+    <span class="str">'http://localhost:5000/api/predict'</span>,
+    json={<span class="str">'features'</span>: features, <span class="str">'model'</span>: <span class="str">'random_forest'</span>}
+)
+result = resp.<span class="fn">json</span>()
+print(<span class="fn">f"Predicted: {result['label']} ({result['confidence']*100:.1f}% confidence)"</span>)
+print(<span class="fn">f"Severity : {result['severity']}/3"</span>)
+print(<span class="fn">f"Fault Type: {result['fault_type']}"</span>)</pre>
+          </div>
+          <div class="code-body" id="code-api">
+            <div class="code-desc">🌐 REST API reference for integrating BearingIQ predictions into any system.</div>
+            <pre><span class="cm"># ── POST /api/predict ─────────────────────────────────</span>
+POST http://localhost:5000/api/predict
+Content-Type: application/json
+
+{
+  <span class="str">"features"</span>: [<span class="num">0.46</span>, <span class="num">-0.38</span>, <span class="num">0.022</span>, <span class="num">0.132</span>, <span class="num">0.134</span>,
+               <span class="num">0.17</span>, <span class="num">-0.08</span>, <span class="num">3.48</span>, <span class="num">6.04</span>],
+  <span class="str">"model"</span>: <span class="str">"random_forest"</span>  <span class="cm">// or "svm"</span>
+}
+
+<span class="cm"># ── Response ──────────────────────────────────────────</span>
+{
+  <span class="str">"predicted_class"</span>: <span class="str">"Ball_007_1"</span>,
+  <span class="str">"label"</span>:           <span class="str">"Ball — 0.007\""</span>,
+  <span class="str">"confidence"</span>:      <span class="num">0.9200</span>,
+  <span class="str">"severity"</span>:        <span class="num">1</span>,
+  <span class="str">"fault_type"</span>:      <span class="str">"ball"</span>,
+  <span class="str">"all_probabilities"</span>: { <span class="str">"Normal_1"</span>: <span class="num">0.04</span>, <span class="str">"Ball_007_1"</span>: <span class="num">0.92</span>, ... }
+}
+
+<span class="cm"># ── Other endpoints ───────────────────────────────────</span>
+GET  /api/health          <span class="cm"># Server status</span>
+GET  /api/classes         <span class="cm"># Class distribution</span>
+GET  /api/stats           <span class="cm"># Feature statistics</span>
+GET  /api/model/info      <span class="cm"># Model metrics</span>
+GET  /api/correlation     <span class="cm"># Correlation matrix</span>
+GET  /api/report          <span class="cm"># Full report data</span>
+POST /api/adviser         <span class="cm"># AI advisor</span>
+POST /api/sensitivity     <span class="cm"># Feature sensitivity</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Info panel -->
+      <div class="info-panel-card">
+        <div class="info-panel-header">
+          <div class="info-panel-title">🔍 Component Inspector</div>
+          <div class="info-panel-sub">Click any part of the motor diagram</div>
+        </div>
+        <div class="info-panel-body" id="info-panel-body">
+          <div class="component-select-prompt">
+            <div class="prompt-icon">🖱️</div>
+            <p style="font-size:.9rem;color:var(--clr-text-muted)">Click any component in the diagram to see detailed technical information.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="../js/main.js"></script>
+<script>
+/* ── Component data ── */
+const COMPONENTS = {
+  housing: {
+    icon: '🏗️', name: 'Motor Housing / Frame',
+    badge: 'Structural', badgeColor: '#64748b',
+    desc: 'The cast iron or aluminum housing encloses all internal components and provides mechanical support. It also contains cooling fins on the exterior to dissipate heat generated by the stator windings. In the CWRU test setup, the accelerometer is mounted directly on the housing surface to capture vibration transmitted from the bearings.',
+    stats: [['Material', 'Cast Iron'], ['Function', 'Enclosure'], ['Feature', 'Cooling Fins'], ['Role', 'Sensor Mount']],
+    faults: [], faultNote: 'The housing is not a direct fault source, but transmits bearing vibrations to the sensor. Housing looseness can amplify or distort fault signatures.'
+  },
+  stator: {
+    icon: '🔴', name: 'Stator Windings',
+    badge: 'Electromagnetic', badgeColor: '#dc2626',
+    desc: 'The stator is the stationary part of the motor containing copper windings arranged in slots around the motor bore. When AC current passes through the windings, it creates a rotating magnetic field that induces current in the rotor (squirrel cage), generating torque. The stator generates significant heat — temperature monitoring is critical for stator health.',
+    stats: [['Winding', 'Copper Wire'], ['Config', '3-Phase AC'], ['Temp Limit', '~155°C (Class F)'], ['Power', '2 HP rated']],
+    faults: [], faultNote: 'Stator winding failures (turn-to-turn shorts, phase-to-ground) generate distinct current signature anomalies — detectable via MCSA (Motor Current Signature Analysis). Our project focuses on bearing vibration, not stator faults.'
+  },
+  rotor: {
+    icon: '🌀', name: 'Rotor (Squirrel Cage)',
+    badge: 'Rotating', badgeColor: '#f97316',
+    desc: 'The squirrel cage rotor consists of aluminum conductor bars embedded in a laminated steel core, short-circuited at both ends by aluminum end rings. Induced currents from the stator field react with the field to produce rotational torque. The rotor spins at 1797 RPM (synchronous speed: 1800 RPM, 4-pole, 60 Hz) — a 3 RPM slip characteristic of induction motors.',
+    stats: [['Type', 'Squirrel Cage'], ['Speed', '1797 RPM'], ['Slip', '0.167%'], ['Poles', '4-pole']],
+    faults: [], faultNote: 'Broken rotor bars cause characteristic sidebands in the current spectrum at (1 ± 2ks)f_supply (MCSA). Our vibration-based platform detects bearing faults. The rotor imbalance would show up as 1X vibration in our RMS and skewness features.'
+  },
+  shaft: {
+    icon: '⬛', name: 'Motor Shaft',
+    badge: 'Mechanical', badgeColor: '#1d4ed8',
+    desc: 'The hardened steel shaft transmits mechanical torque from the rotor to the driven load. It passes through both bearings (Drive End and Fan End). In the CWRU setup, a dynamometer is connected at the Drive End to apply controlled mechanical load (0–3 HP). Shaft misalignment or imbalance causes vibration that superimposes on the bearing fault signal.',
+    stats: [['Material', 'Tool Steel'], ['Load End', 'Drive End (DE)'], ['Support', 'Two Bearings'], ['Dia.', '~25mm']],
+    faults: [], faultNote: 'Shaft misalignment produces vibration at 1X and 2X running speed. Our kurtosis and crest factor features would show elevated values. Form factor deviations can also indicate resonance issues.'
+  },
+  'bearing-de': {
+    icon: '🟣', name: 'Drive End (DE) Bearing',
+    badge: '🎯 Primary Fault Source', badgeColor: '#7c3aed',
+    desc: 'The Drive End bearing (SKF 6205) supports the loaded end of the shaft where the dynamometer applies torque. THIS IS THE PRIMARY BEARING UNDER STUDY. Faults are artificially seeded using electro-discharge machining (EDM) to create defects of 0.007", 0.014", and 0.021" diameter on the inner race, outer race, or rolling ball elements. The accelerometer is mounted at the 12 o\'clock position on the DE housing.',
+    stats: [['Model', 'SKF 6205'], ['Position', 'Drive End'], ['OD', '52 mm'], ['Balls', '9 × 7.94mm']],
+    faults: [
+      { label: 'Ball Fault (BDF)', color: '#f59e0b' },
+      { label: 'Inner Race (BPFI)', color: '#8b5cf6' },
+      { label: 'Outer Race (BPFO)', color: '#3b82f6' },
+    ],
+    faultNote: 'DE Bearing fault frequencies: BPFI = 5.415 × RPM/60, BPFO = 3.585 × RPM/60, BDF = 2.357 × RPM/60. All three fault types at three severity levels (0.007", 0.014", 0.021") form the 9 fault classes in our CWRU dataset.'
+  },
+  'bearing-fe': {
+    icon: '🩵', name: 'Fan End (FE) Bearing',
+    badge: 'Secondary Bearing', badgeColor: '#0891b2',
+    desc: 'The Fan End bearing (SKF 6203) supports the non-loaded end of the shaft where the cooling fan is attached. It carries lighter loads than the Drive End bearing. In some CWRU dataset variants, FE bearing faults are also studied, but the primary dataset we use focuses on DE bearing faults under 1 HP load condition.',
+    stats: [['Model', 'SKF 6203'], ['Position', 'Fan End'], ['OD', '40 mm'], ['Balls', '7 × 6.75mm']],
+    faults: [],
+    faultNote: 'The FE bearing operates at lower stress levels. It acts as a reference point — comparing FE vs DE vibration signatures helps isolate fault location.'
+  },
+  fan: {
+    icon: '💨', name: 'Cooling Fan',
+    badge: 'Thermal', badgeColor: '#0f766e',
+    desc: 'The externally mounted centrifugal fan creates airflow over the motor housing cooling fins to remove heat from the stator windings. The fan is a potential source of aerodynamic vibration at blade-pass frequency (number of blades × RPM), which must be filtered or accounted for in vibration analysis. In the CWRU setup, the fan contributes minor background vibration.',
+    stats: [['Type', 'Centrifugal'], ['Drive', 'Shaft-mounted'], ['Purpose', 'Stator Cooling'], ['Noise', 'Blade-pass Freq']],
+    faults: [], faultNote: 'Fan imbalance or blade damage creates vibration at 1X and blade-pass frequency. This can alias with bearing frequencies if not properly isolated.'
+  },
+  endcap: {
+    icon: '⬛', name: 'End Caps (Bearing Shields)',
+    badge: 'Structural', badgeColor: '#475569',
+    desc: 'The end caps (also called end shields or end bells) are precision-machined cast iron or aluminum caps bolted to both ends of the motor housing. They contain the bearing housings that precisely locate and support the bearings. The accuracy of the bearing housing bore diameter and roundness is critical — dimensional errors cause abnormal bearing loading.',
+    stats: [['Material', 'Cast Iron'], ['Function', 'Bearing Housing'], ['Tolerance', 'H7 bore fit'], ['Mounting', 'Bolted']],
+    faults: [], faultNote: 'End cap looseness (structural looseness fault) causes vibration at 0.5X, 1X, and 2X running speed with many harmonics. This can be confused with early-stage bearing faults.'
+  },
+  sensor: {
+    icon: '📡', name: 'Accelerometer (ADXL345 / PCB 352C33)',
+    badge: '🔬 Data Source', badgeColor: '#059669',
+    desc: 'The piezoelectric accelerometer is mounted at the 12 o\'clock position on the Drive End bearing housing. It measures vibration acceleration in g-force units at a sampling rate of 48,000 Hz (48 kHz). High sampling rate is critical to capture high-frequency fault impulses — bearing defect frequencies are often in the 1–20 kHz range after demodulation. The raw time-series is segmented into 1024-sample windows for feature extraction.',
+    stats: [['Type', 'Piezoelectric'], ['Sample Rate', '48 kHz'], ['Range', '±50g'], ['Output', 'Analog / Digital']],
+    faults: [], faultNote: 'Sensor placement is critical. A 6 o\'clock position (bottom) better captures outer race faults (load zone). The CWRU dataset specifically used 12 o\'clock for outer race measurements — a key reason for the OR_007_6_1 naming convention (\'6\' = 6 o\'clock). Our model was trained on data from this specific sensor placement.'
+  },
+};
+
+let selectedComp = null;
+
+function selectComponent(id) {
+  // Remove previous selection
+  if (selectedComp) {
+    document.getElementById('comp-' + selectedComp)?.classList.remove('selected');
+  }
+  selectedComp = id;
+  const el = document.getElementById('comp-' + id);
+  if (el) el.classList.add('selected');
+
+  const data = COMPONENTS[id];
+  if (!data) return;
+
+  const statsHTML = data.stats.map(([k, v]) => \`
+    <div class="comp-stat">
+      <div class="comp-stat-val">\${v}</div>
+      <div class="comp-stat-lbl">\${k}</div>
+    </div>
+  \`).join('');
+
+  const faultsHTML = data.faults.length ? \`
+    <div class="comp-fault-section">
+      <div class="comp-fault-title">Associated Fault Types</div>
+      \${data.faults.map(f => \`<span class="comp-fault-tag" style="color:\${f.color};border-color:\${f.color};background:\${f.color}15">\${f.label}</span>\`).join('')}
+    </div>
+  \` : '';
+
+  document.getElementById('info-panel-body').innerHTML = \`
+    <div class="comp-info-icon">\${data.icon}</div>
+    <div class="comp-info-name">\${data.name}</div>
+    <span class="comp-info-badge" style="background:\${data.badgeColor}18;color:\${data.badgeColor};border:2px solid \${data.badgeColor}30">\${data.badge}</span>
+    <p class="comp-info-desc">\${data.desc}</p>
+    <div class="comp-info-stats">\${statsHTML}</div>
+    \${faultsHTML}
+    <div style="background:var(--clr-surface-2);border:1px solid var(--clr-border);border-radius:var(--r-md);padding:var(--sp-3);margin-top:var(--sp-3)">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--clr-text-muted);margin-bottom:6px;">📝 Engineering Note</div>
+      <p style="font-size:.78rem;color:var(--clr-text-muted);line-height:1.6">\${data.faultNote}</p>
+    </div>
+  \`;
+}
+
+function setView(view, btn) {
+  document.querySelectorAll('.motor-ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Simple opacity animation for view switch
+  const svg = document.getElementById('motor-svg');
+  svg.style.opacity = '0';
+  setTimeout(() => { svg.style.transition = 'opacity .4s'; svg.style.opacity = '1'; }, 300);
+}
+
+function switchCode(tab, el) {
+  document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.code-body').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('code-' + tab).classList.add('active');
+}
+
+// Legend buttons
+document.querySelectorAll('.comp-legend').forEach(el => {
+  el.style.cssText += 'cursor:pointer;padding:4px 10px;border-radius:8px;font-size:.72rem;font-weight:700;display:inline-block;transition:all .2s;';
+  el.addEventListener('mouseenter', () => el.style.transform = 'scale(1.05)');
+  el.addEventListener('mouseleave', () => el.style.transform = '');
+});
+
+// Auto-select bearing on load
+selectComponent('bearing-de');
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# Environment variables
+.env
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+.env_dir/
+
+# Trained models (optional, uncomment if you don't want to version control large model files)
+# app/backend/models/*.pkl
+
+# OS specific
+.DS_Store
+Thumbs.db

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predict — BearingIQ</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/predict.css">
+  <script src="../js/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<script src="../js/sidebar.js"></script>
+
+<!-- ── Main wrapper ─────────────────────────────────────────── -->
+<div class="main-wrapper">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Live Fault Prediction</div>
+        <div class="topbar-breadcrumb">BearingIQ → Predict</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content">
+
+    <div class="predict-layout">
+
+      <!-- ── Left: Input Panel ────────────────────────────────── -->
+      <div class="input-panel anim-fade-in-up">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span style="font-size:1.2rem">🎛️</span>
+            Sensor Input Parameters
+          </div>
+        </div>
+        <div class="panel-body">
+
+          <!-- Presets -->
+          <div class="presets-section">
+            <div class="presets-label">Load Example Signatures</div>
+            <div class="presets-grid" id="presets-grid">
+              <!-- Injected by predict.js -->
+            </div>
+          </div>
+
+          <!-- Model selection -->
+          <div class="presets-label" style="margin-top:-.5rem">Select ML Model</div>
+          <div class="model-selector">
+            <button class="model-btn active" data-model="random_forest">🌲 Random Forest</button>
+            <button class="model-btn" data-model="svm">⚡ SVM (RBF)</button>
+          </div>
+
+          <!-- Sliders -->
+          <div class="feature-inputs" id="feature-sliders">
+            <!-- Injected by predict.js -->
+          </div>
+
+          <!-- Actions -->
+          <div class="predict-actions">
+            <button class="btn-reset" id="btn-reset">Reset</button>
+            <button class="btn-predict" id="btn-predict">
+              🔮 Predict Fault Type
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Right: Result Panel ──────────────────────────────── -->
+      <div class="result-panel">
+
+        <!-- Prediction Result -->
+        <div class="prediction-result anim-slide-left delay-1" id="result-panel">
+          <div class="result-hero" id="result-hero">
+            <div class="result-icon" id="result-icon">🔮</div>
+            <div class="result-class" id="result-class-name" style="color:var(--clr-text-muted)">
+              Run a prediction
+            </div>
+            <div class="result-confidence" id="result-conf-wrap">
+              <span class="confidence-label">Confidence:</span>
+              <span class="confidence-pct" id="result-conf-pct">—</span>
+            </div>
+          </div>
+          <div class="result-body">
+            
+            <div class="severity-display" id="severity-display">
+              <div class="severity-dots" id="severity-dots">
+                <div class="sev-dot"></div>
+                <div class="sev-dot"></div>
+                <div class="sev-dot"></div>
+              </div>
+              <div class="severity-text" id="severity-text" style="color:var(--clr-text-muted)">Awaiting Data</div>
+            </div>
+
+            <div class="presets-label">Class Probabilities</div>
+            <div class="prob-list" id="prob-list">
+              <div class="empty-state" style="padding:1rem">
+                <span style="font-size:2rem;opacity:.3">📊</span>
+                <p style="margin-top:.5rem;font-size:.85rem;color:var(--clr-text-muted)">
+                  Run a prediction to see class probabilities
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Sensitivity Analysis -->
+        <div class="sensitivity-section anim-slide-left delay-2">
+          <div class="panel-header" style="background:var(--clr-surface-2);color:var(--clr-text);border-bottom:2px solid var(--clr-border)">
+            <div class="panel-title">
+              <span>📈</span> Sensitivity Analysis
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="sensitivity-controls">
+              <span style="font-size:.8rem;font-weight:600">Vary feature:</span>
+              <select id="sens-feat-select" class="feature-number-input" style="width:auto;text-align:left">
+                <!-- Injected -->
+              </select>
+              <button class="btn btn-sm btn-outline" id="btn-sensitivity">Analyze</button>
+            </div>
+            <div class="chart-container" style="height:180px">
+              <canvas id="sensitivityChart"></canvas>
+            </div>
+            <div style="font-size:.7rem;text-align:center;color:var(--clr-text-muted);margin-top:10px">
+              Shows how changing <strong><span id="sens-feat-name">—</span></strong> affects the model's confidence.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/main.js?v=2"></script>
+<script src="../js/predict.js?v=2"></script>
+</body>
+</html>

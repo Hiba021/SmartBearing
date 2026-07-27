@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BearingIQ — Signal Processing Pipeline</title>
+<meta name="description" content="Industrial predictive maintenance pipeline using real CWRU .mat files and trained Random Forest / SVM models.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#F0F4FF;--surf:#fff;--surf2:#F8FAFF;--brd:#E2E8F8;--brd2:#C7D2FE;
+  --pri:#4F46E5;--pril:#EEF2FF;--prid:#3730A3;
+  --green:#10B981;--greenl:#D1FAE5;--yellow:#F59E0B;--yellowl:#FEF3C7;
+  --orange:#F97316;--red:#EF4444;--redl:#FEE2E2;
+  --cyan:#06B6D4;--cyanl:#CFFAFE;
+  --violet:#8B5CF6;--blue:#3B82F6;
+  --tx:#0F172A;--muted:#64748B;--light:#94A3B8;
+  --r:12px;--rl:18px;--rx:24px;
+  --sh:0 1px 3px rgba(79,70,229,.07),0 1px 2px rgba(0,0,0,.05);
+  --shm:0 4px 16px rgba(79,70,229,.10),0 2px 4px rgba(0,0,0,.06);
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --sw:256px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;display:flex}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:3px}
+
+/* SIDEBAR */
+.sidebar{width:var(--sw);min-height:100vh;background:var(--surf);
+  border-right:2px solid var(--brd);position:fixed;left:0;top:0;
+  display:flex;flex-direction:column;z-index:100;box-shadow:var(--sh)}
+.sidebar-logo{padding:1.5rem;border-bottom:2px solid var(--brd);display:flex;align-items:center;gap:.75rem}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--pri),#7C3AED);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(79,70,229,.35)}
+.logo-name{font-weight:800;font-size:1.05rem;background:linear-gradient(135deg,var(--pri),#7C3AED);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block}
+.logo-sub{font-size:.62rem;color:var(--muted);font-weight:600;letter-spacing:.5px}
+.sidebar-nav{flex:1;padding:.75rem;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-label{font-size:.62rem;font-weight:700;color:var(--light);letter-spacing:1px;text-transform:uppercase;padding:.75rem .75rem .4rem}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border-radius:var(--r);
+  font-size:.82rem;font-weight:500;color:var(--muted);transition:all .15s;
+  border-left:3px solid transparent;cursor:pointer;user-select:none}
+.nav-item:hover{background:var(--pril);color:var(--pri);border-left-color:var(--pri)}
+.nav-item.active{background:var(--pril);color:var(--pri);border-left-color:var(--pri);font-weight:700}
+.nav-item-icon{font-size:1rem;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--pri);color:#fff;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:20px}
+.sidebar-footer{padding:1rem 1.5rem;border-top:2px solid var(--brd);font-size:.72rem;color:var(--light)}
+.sidebar-footer strong{display:block;color:var(--muted);font-size:.75rem;margin-bottom:2px}
+
+/* MAIN */
+.main-wrap{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surf);border-bottom:2px solid var(--brd);padding:0 2rem;height:62px;
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh)}
+.topbar-title{font-size:1.05rem;font-weight:700}
+.topbar-crumb{font-size:.75rem;color:var(--muted)}
+.content{padding:2rem;max-width:1400px;margin:0 auto;width:100%}
+
+/* HERO */
+.pipe-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);
+  border-radius:var(--rx);padding:3rem;color:#fff;position:relative;overflow:hidden;
+  margin-bottom:2rem;box-shadow:0 20px 60px rgba(79,70,229,.35)}
+.pipe-hero::before{content:'';position:absolute;inset:0;
+  background-image:radial-gradient(rgba(99,102,241,.15) 1px,transparent 1px);background-size:24px 24px}
+.pipe-hero *{position:relative}
+.pipe-hero h1{font-size:2.4rem;font-weight:900;letter-spacing:-1px;line-height:1.1;margin-bottom:.75rem;
+  background:linear-gradient(to right,#a5b4fc,#c4b5fd,#f0abfc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.pipe-hero p{font-size:.95rem;color:#a5b4fc;max-width:700px;line-height:1.7}
+.pipe-hero-tag{display:inline-flex;align-items:center;gap:.5rem;
+  background:rgba(99,102,241,.3);border:1px solid rgba(99,102,241,.5);
+  border-radius:20px;padding:4px 14px;font-size:.72rem;font-weight:700;
+  letter-spacing:.5px;color:#c4b5fd;margin-bottom:1rem}
+
+/* CARDS */
+.card{background:var(--surf);border-radius:var(--rl);border:2px solid var(--brd);
+  box-shadow:var(--sh);overflow:hidden;margin-bottom:1.5rem;transition:all .3s}
+.card:hover{box-shadow:var(--shm)}
+.card-hd{padding:1.1rem 1.5rem;border-bottom:2px solid var(--brd);display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.card-title{font-size:.92rem;font-weight:700;display:flex;align-items:center;gap:.5rem}
+.card-body{padding:1.5rem}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.55rem 1.1rem;border-radius:var(--r);
+  font-size:.8rem;font-weight:600;transition:all .15s;border:2px solid transparent;cursor:pointer}
+.btn-pri{background:var(--pri);color:#fff;border-color:var(--pri);box-shadow:0 2px 8px rgba(79,70,229,.3)}
+.btn-pri:hover{background:var(--prid);transform:translateY(-1px)}
+.btn-ghost{background:var(--surf2);color:var(--muted);border-color:var(--brd)}
+.btn-ghost:hover{background:var(--brd);color:var(--tx)}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-sm{padding:.35rem .85rem;font-size:.72rem}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;
+  font-size:.65rem;font-weight:700;border:1.5px solid}
+
+/* ========== DROP ZONE ========== */
+.drop-zone{
+  border:3px dashed var(--brd2);border-radius:var(--rx);padding:3rem;text-align:center;
+  background:linear-gradient(135deg,var(--pril),#F5F3FF);transition:all .3s;cursor:pointer;
+  position:relative;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center
+}
+.drop-zone.drag-over{border-color:var(--pri);background:rgba(79,70,229,.08);transform:scale(1.01)}
+.drop-zone.uploaded{border-color:var(--green);border-style:solid;background:var(--greenl)}
+.drop-icon{font-size:3.5rem;margin-bottom:1rem;filter:grayscale(.3);transition:filter .3s}
+.drop-zone:hover .drop-icon{filter:grayscale(0)}
+.drop-title{font-size:1.1rem;font-weight:700;color:var(--tx);margin-bottom:.25rem}
+.drop-sub{font-size:.8rem;color:var(--muted)}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* ========== PIPELINE STEPS ========== */
+.pipeline{display:flex;flex-direction:column;gap:0}
+.pipe-step{opacity:.35;transition:all .5s;transform:translateY(10px);pointer-events:none}
+.pipe-step.active{opacity:1;transform:translateY(0);pointer-events:all}
+.pipe-step.done{opacity:1;transform:translateY(0);pointer-events:all}
+.pipe-connector{display:flex;align-items:center;justify-content:center;padding:.5rem 0}
+.pipe-connector-line{width:3px;height:30px;background:var(--brd);border-radius:2px;transition:background .5s}
+.pipe-step.done+.pipe-connector .pipe-connector-line,
+.pipe-step.active+.pipe-connector .pipe-connector-line{background:var(--pri)}
+
+.step-header{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
+.step-num{width:40px;height:40px;border-radius:50%;background:var(--brd);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;
+  font-family:var(--mono);transition:all .4s;flex-shrink:0}
+.pipe-step.active .step-num{background:var(--pri);color:#fff;box-shadow:0 0 16px rgba(79,70,229,.4);animation:pulse-step 2s infinite}
+.pipe-step.done .step-num{background:var(--green);color:#fff}
+@keyframes pulse-step{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.35)}50%{box-shadow:0 0 0 10px rgba(79,70,229,0)}}
+.step-title{font-size:1rem;font-weight:700}
+.step-sub{font-size:.75rem;color:var(--muted)}
+
+/* STATUS CHIPS */
+.status-chip{display:inline-flex;align-items:center;gap:.4rem;padding:3px 10px;border-radius:20px;
+  font-size:.68rem;font-weight:700;border:1.5px solid}
+.status-pending{background:var(--surf2);color:var(--muted);border-color:var(--brd)}
+.status-active{background:var(--pril);color:var(--pri);border-color:var(--brd2);animation:glow-active 1.5s infinite}
+@keyframes glow-active{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.2)}50%{box-shadow:0 0 0 6px rgba(79,70,229,0)}}
+.status-done{background:var(--greenl);color:var(--green);border-color:#86EFAC}
+
+/* VARIABLE CHIPS */
+.var-chip{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .8rem;border-radius:var(--r);
+  background:var(--surf2);border:1.5px solid var(--brd);font-size:.75rem;font-weight:600;
+  font-family:var(--mono);transition:all .2s}
+.var-chip.de{border-color:var(--pri);background:var(--pril);color:var(--pri)}
+.var-chip.fe{border-color:var(--cyan);background:var(--cyanl);color:var(--cyan)}
+
+/* CHART CONTAINERS */
+.chart-dark{background:#0f172a;border-radius:var(--rl);border:2px solid #1e293b;padding:1.25rem;position:relative}
+.chart-label{color:#94a3b8;font-size:.72rem;font-weight:600;margin-bottom:.75rem;display:flex;align-items:center;justify-content:space-between}
+
+/* WINDOW TIMELINE */
+.window-timeline{display:flex;gap:3px;overflow-x:auto;padding:.75rem 0;scrollbar-width:thin}
+.win-block{width:12px;height:28px;background:var(--brd);border-radius:3px;cursor:pointer;transition:all .15s;flex-shrink:0}
+.win-block:hover{background:var(--brd2);transform:scaleY(1.2)}
+.win-block.selected{background:var(--pri);transform:scaleY(1.3);box-shadow:0 0 8px rgba(79,70,229,.4)}
+
+/* FEATURE TABLE */
+.feat-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.78rem}
+.feat-table th{background:var(--surf2);padding:.65rem .9rem;text-align:left;font-size:.68rem;
+  font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--brd)}
+.feat-table td{padding:.65rem .9rem;border-bottom:1px solid var(--brd);transition:all .3s}
+.feat-table tr:hover td{background:var(--pril)}
+.feat-val{font-family:var(--mono);font-weight:600;font-size:.82rem}
+.feat-animated{animation:fadeVal .5s ease both}
+@keyframes fadeVal{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+
+/* PREDICTION RESULT */
+.pred-result{border-radius:var(--rl);padding:2rem;text-align:center;position:relative;overflow:hidden}
+.pred-icon{font-size:3rem;margin-bottom:.5rem}
+.pred-class{font-size:1.6rem;font-weight:900;letter-spacing:-.5px}
+.pred-conf{font-size:2.5rem;font-weight:900;font-family:var(--mono);letter-spacing:-1px}
+.pred-model-tag{display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);
+  border-radius:20px;padding:4px 12px;font-size:.7rem;font-weight:700;margin-top:.75rem}
+
+/* PROBABILITY BARS */
+.prob-item{margin-bottom:.5rem}
+.prob-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.prob-bar-bg{height:8px;background:var(--brd);border-radius:99px;overflow:hidden}
+.prob-bar-fill{height:100%;border-radius:99px;transition:width .8s ease}
+
+/* MODEL CARDS */
+.model-cards{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.model-card{border-radius:var(--rl);padding:1.5rem;color:#fff;position:relative;overflow:hidden}
+.model-card::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.05);
+  border-radius:50%;width:200px;height:200px;top:-60px;right:-60px}
+.model-card h3{font-size:1rem;font-weight:800;margin-bottom:.75rem}
+.model-stat{display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.15);font-size:.78rem}
+.model-stat-val{font-family:var(--mono);font-weight:700}
+
+/* KPI row */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.kpi{background:var(--surf);border-radius:var(--rl);padding:1.2rem;border:2px solid var(--brd);
+  position:relative;overflow:hidden;box-shadow:var(--sh)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--kc,var(--pri))}
+.kpi-icon{font-size:1.5rem;margin-bottom:.35rem}
+.kpi-val{font-size:1.5rem;font-weight:900;font-family:var(--mono);letter-spacing:-1px}
+.kpi-lbl{font-size:.7rem;color:var(--muted);font-weight:600;margin-top:.15rem}
+
+/* SPINNER */
+.spinner{width:20px;height:20px;border:3px solid var(--brd);border-top-color:var(--pri);
+  border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PROGRESS BAR */
+.progress-wrap{height:6px;background:var(--brd);border-radius:99px;overflow:hidden;margin:.75rem 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--pri),#7C3AED);border-radius:99px;
+  transition:width .4s ease;width:0%}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.anim-up{animation:fadeUp .5s ease both}
+.anim-slide{animation:slideIn .4s ease both}
+
+/* MAINT CARD */
+.maint-card{border-radius:var(--r);padding:1rem;border-left:4px solid;margin-bottom:.75rem}
+
+/* Responsive */
+@media(max-width:1100px){
+  .model-cards,.kpi-row{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  .kpi-row{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .main-wrap{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR --><script src="../js/sidebar.js"></script>
+
+<div class="main-wrap">
+<!-- TOPBAR -->
+<header class="topbar">
+  <div>
+    <div class="topbar-title">🏭 Signal Processing Pipeline</div>
+    <div class="topbar-crumb">BearingIQ → Industrial Pipeline</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <div id="server-status" style="display:flex;align-items:center;gap:.4rem;font-size:.72rem;color:var(--muted)">
+      <div class="spinner" style="width:12px;height:12px;border-width:2px"></div> Checking server…
+    </div>
+    <a href="BearingIQ_complete.html" class="btn btn-ghost btn-sm">← Dashboard</a>
+  </div>
+</header>
+
+<div class="content">
+<!-- HERO -->
+<div class="pipe-hero anim-up">
+  <div class="pipe-hero-tag">🏭 INDUSTRIAL PREDICTIVE MAINTENANCE PIPELINE</div>
+  <h1>MAT File → Diagnosis</h1>
+  <p>Upload a real CWRU .mat file and watch the complete predictive maintenance pipeline process it step by step — from raw vibration data to fault classification using the trained Random Forest (200 trees, 99.4% accuracy) and SVM (RBF kernel, 99.2% accuracy) models.</p>
+</div>
+
+<!-- MODEL INFO CARDS -->
+<div class="model-cards">
+  <div class="model-card" style="background:linear-gradient(135deg,#059669,#10B981)">
+    <h3>🌲 Random Forest Classifier</h3>
+    <div class="model-stat"><span>Architecture</span><span class="model-stat-val">200 Decision Trees</span></div>
+    <div class="model-stat"><span>Test Accuracy</span><span class="model-stat-val">99.4%</span></div>
+    <div class="model-stat"><span>Training Samples</span><span class="model-stat-val">1,896 (80%)</span></div>
+    <div class="model-stat"><span>Criterion</span><span class="model-stat-val">Gini Impurity</span></div>
+    <div class="model-stat"><span>Cross-Validation</span><span class="model-stat-val">99.3% ± 0.4%</span></div>
+  </div>
+  <div class="model-card" style="background:linear-gradient(135deg,#4F46E5,#7C3AED)">
+    <h3>🔷 SVM Classifier</h3>
+    <div class="model-stat"><span>Kernel</span><span class="model-stat-val">RBF (Radial Basis)</span></div>
+    <div class="model-stat"><span>Test Accuracy</span><span class="model-stat-val">99.2%</span></div>
+    <div class="model-stat"><span>C Parameter</span><span class="model-stat-val">10</span></div>
+    <div class="model-stat"><span>Gamma</span><span class="model-stat-val">scale (auto)</span></div>
+    <div class="model-stat"><span>Cross-Validation</span><span class="model-stat-val">99.1% ± 0.5%</span></div>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+  <div class="kpi" style="--kc:#4F46E5"><div class="kpi-icon">📡</div><div class="kpi-val">48 kHz</div><div class="kpi-lbl">Sampling Frequency</div></div>
+  <div class="kpi" style="--kc:#10B981"><div class="kpi-icon">📊</div><div class="kpi-val">2,048</div><div class="kpi-lbl">Window Size (samples)</div></div>
+  <div class="kpi" style="--kc:#8B5CF6"><div class="kpi-icon">🧮</div><div class="kpi-val">9</div><div class="kpi-lbl">Statistical Features</div></div>
+  <div class="kpi" style="--kc:#F59E0B"><div class="kpi-icon">🎯</div><div class="kpi-val">10</div><div class="kpi-lbl">Fault Classes</div></div>
+</div>
+
+<!-- ==================== PIPELINE ==================== -->
+<div class="pipeline" id="pipeline">
+
+  <!-- STEP 1: UPLOAD -->
+  <div class="pipe-step active" id="step-1">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">Upload MATLAB File</div>
+        <div class="step-sub">Drag & drop or click to select a CWRU .mat file</div>
+      </div>
+      <div class="status-chip status-active" id="s1-status">⏳ Waiting for file</div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept=".mat">
+          <div class="drop-icon">📂</div>
+          <div class="drop-title">Drop your .mat file here</div>
+          <div class="drop-sub">Supports CWRU Bearing Dataset files (e.g., B007_1_123.mat, IR021_1_209.mat)</div>
+        </div>
+        <div id="upload-progress" style="display:none">
+          <div class="progress-wrap"><div class="progress-fill" id="upload-bar"></div></div>
+          <div style="text-align:center;font-size:.75rem;color:var(--muted)" id="upload-text">Uploading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+
+  <!-- STEP 2: PARSE -->
+  <div class="pipe-step" id="step-2">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">Parse MATLAB Structure</div>
+        <div class="step-sub">Read .mat file and detect available sensor variables</div>
+      </div>
+      <div class="status-chip status-pending" id="s2-status">Pending</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">📋 Detected Variables</div><span class="badge" style="background:var(--pril);color:var(--pri);border-color:var(--brd2)" id="var-count">—</span></div>
+      <div class="card-body">
+        <div id="var-list" style="display:flex;flex-wrap:wrap;gap:.5rem">
+          <div style="color:var(--muted);font-size:.8rem">Upload a file to see variables…</div>
+        </div>
+        <div id="file-info" style="display:none;margin-top:1rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+            <div style="background:var(--surf2);border:1.5px solid var(--brd);border-radius:var(--r);padding:.85rem">
+              <div style="font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total Samples</div>
+              <div style="font-size:1.3rem;font-weight:800;font-family:var(--mono);color:var(--pri)" id="info-samples">—</div>
+            </div>
+            <div style="background:var(--surf2);border:1.5px solid var(--brd);border-radius:var(--r);padding:.85rem">
+              <div style="font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Duration</div>
+              <div style="font-size:1.3rem;font-weight:800;font-family:var(--mono);color:var(--violet)" id="info-duration">—</div>
+            </div>
+            <div style="background:var(--surf2);border:1.5px solid var(--brd);border-radius:var(--r);padding:.85rem">
+              <div style="font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Windows (2048)</div>
+              <div style="font-size:1.3rem;font-weight:800;font-family:var(--mono);color:var(--green)" id="info-windows">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+
+  <!-- STEP 3: FULL SIGNAL -->
+  <div class="pipe-step" id="step-3">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">Vibration Waveform Visualization</div>
+        <div class="step-sub">Complete Drive End (DE) accelerometer signal</div>
+      </div>
+      <div class="status-chip status-pending" id="s3-status">Pending</div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="chart-dark">
+          <div class="chart-label">
+            <span id="signal-chart-label">📉 Drive End Vibration Signal</span>
+            <span style="font-size:.65rem;color:#64748b" id="signal-info">—</span>
+          </div>
+          <div style="height:280px"><canvas id="full-signal-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+
+  <!-- STEP 4: WINDOWING -->
+  <div class="pipe-step" id="step-4">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div>
+        <div class="step-title">Signal Windowing (Segmentation)</div>
+        <div class="step-sub">Split continuous signal into 2048-sample analysis windows</div>
+      </div>
+      <div class="status-chip status-pending" id="s4-status">Pending</div>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">🔲 Select Analysis Window</div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <span style="font-size:.75rem;color:var(--muted)">Window:</span>
+          <input type="number" id="window-input" min="0" max="0" value="0" style="width:70px;padding:.3rem .5rem;border:1.5px solid var(--brd);border-radius:var(--r);font-family:var(--mono);font-size:.8rem;text-align:center">
+          <span style="font-size:.72rem;color:var(--muted)" id="window-total">/ 0</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Click a block to select a window (scroll for more →)</div>
+        <div class="window-timeline" id="window-timeline"></div>
+        <div class="chart-dark" style="margin-top:1rem">
+          <div class="chart-label">
+            <span id="window-chart-label">📊 Selected Window</span>
+            <span style="font-size:.65rem;color:#64748b" id="window-info">—</span>
+          </div>
+          <div style="height:220px"><canvas id="window-chart"></canvas></div>
+        </div>
+        <div style="margin-top:.75rem;text-align:center">
+          <button class="btn btn-pri" onclick="analyzeWindow()">⚡ Analyze This Window →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+
+  <!-- STEP 5: FEATURE EXTRACTION -->
+  <div class="pipe-step" id="step-5">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div>
+        <div class="step-title">Statistical Feature Extraction</div>
+        <div class="step-sub">Compute 9 time-domain descriptors from the 2048-sample window</div>
+      </div>
+      <div class="status-chip status-pending" id="s5-status">Pending</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">🧮 Extracted Features</div><span class="badge" style="background:var(--pril);color:var(--pri);border-color:var(--brd2)">9 features</span></div>
+      <div class="card-body">
+        <table class="feat-table" id="feat-table">
+          <thead><tr><th>#</th><th>Feature</th><th>Formula</th><th>Raw Value</th><th>Scaled (Z-score)</th></tr></thead>
+          <tbody id="feat-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+
+  <!-- STEP 6: PREDICTION -->
+  <div class="pipe-step" id="step-6">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <div>
+        <div class="step-title">Model Prediction & Diagnosis</div>
+        <div class="step-sub">Feed standardized features to both Random Forest and SVM classifiers</div>
+      </div>
+      <div class="status-chip status-pending" id="s6-status">Pending</div>
+    </div>
+
+    <!-- RF Result -->
+    <div class="card">
+      <div class="card-hd"><div class="card-title">🌲 Random Forest Prediction</div><span class="badge" style="background:var(--greenl);color:var(--green);border-color:#86EFAC">PRIMARY MODEL</span></div>
+      <div class="card-body">
+        <div class="pred-result" id="rf-result" style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF)">
+          <div class="pred-icon" id="rf-icon">🔮</div>
+          <div class="pred-class" id="rf-class" style="color:var(--muted)">Awaiting prediction…</div>
+          <div class="pred-conf" id="rf-conf" style="color:var(--muted)">—</div>
+          <div class="pred-model-tag" style="display:none" id="rf-tag">🌲 Random Forest · 200 Trees · Gini Impurity</div>
+        </div>
+        <div style="margin-top:1.25rem">
+          <div style="font-size:.8rem;font-weight:700;margin-bottom:.75rem">📊 Class Probabilities (Random Forest)</div>
+          <div id="rf-probs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SVM Result -->
+    <div class="card">
+      <div class="card-hd"><div class="card-title">🔷 SVM Prediction</div><span class="badge" style="background:var(--pril);color:var(--pri);border-color:var(--brd2)">SECONDARY MODEL</span></div>
+      <div class="card-body">
+        <div class="pred-result" id="svm-result" style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF)">
+          <div class="pred-icon" id="svm-icon">🔮</div>
+          <div class="pred-class" id="svm-class" style="color:var(--muted)">Awaiting prediction…</div>
+          <div class="pred-conf" id="svm-conf" style="color:var(--muted)">—</div>
+          <div class="pred-model-tag" style="display:none" id="svm-tag">🔷 SVM · RBF Kernel · C=10</div>
+        </div>
+        <div style="margin-top:1.25rem">
+          <div style="font-size:.8rem;font-weight:700;margin-bottom:.75rem">📊 Class Probabilities (SVM)</div>
+          <div id="svm-probs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAINTENANCE ADVICE -->
+    <div class="card" id="maint-card" style="display:none">
+      <div class="card-hd"><div class="card-title">🔧 Maintenance Recommendation</div></div>
+      <div class="card-body" id="maint-body"></div>
+    </div>
+  </div>
+
+</div><!-- pipeline -->
+</div><!-- content -->
+</div><!-- main-wrap -->
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let uploadedFilename = null;
+let totalWindows = 0;
+let selectedWindow = 0;
+let fullSignalChart = null;
+let windowChart = null;
+
+const FAULT_META = {
+  'Normal_1':   {label:'Normal',              icon:'✅', color:'#10B981', type:'normal',  sev:0},
+  'Ball_007_1': {label:'Ball — 0.007"',       icon:'⚠️', color:'#F59E0B', type:'ball',    sev:1},
+  'Ball_014_1': {label:'Ball — 0.014"',       icon:'🔶', color:'#F97316', type:'ball',    sev:2},
+  'Ball_021_1': {label:'Ball — 0.021"',       icon:'🔴', color:'#EF4444', type:'ball',    sev:3},
+  'IR_007_1':   {label:'Inner Race — 0.007"', icon:'⚠️', color:'#A78BFA', type:'inner',   sev:1},
+  'IR_014_1':   {label:'Inner Race — 0.014"', icon:'🔶', color:'#8B5CF6', type:'inner',   sev:2},
+  'IR_021_1':   {label:'Inner Race — 0.021"', icon:'🔴', color:'#7C3AED', type:'inner',   sev:3},
+  'OR_007_6_1': {label:'Outer Race — 0.007"', icon:'⚠️', color:'#60A5FA', type:'outer',   sev:1},
+  'OR_014_6_1': {label:'Outer Race — 0.014"', icon:'🔶', color:'#3B82F6', type:'outer',   sev:2},
+  'OR_021_6_1': {label:'Outer Race — 0.021"', icon:'🔴', color:'#1D4ED8', type:'outer',   sev:3},
+};
+
+const FEAT_FORMULAS = {
+  max:'max(x)', min:'min(x)', mean:'Σx/N', sd:'√(Σ(x-μ)²/N)',
+  rms:'√(Σx²/N)', skewness:'E[(x-μ)³]/σ³', kurtosis:'E[(x-μ)⁴]/σ⁴ - 3',
+  crest:'|max|/RMS', form:'RMS/Mean|x|'
+};
+
+const MAINT_ADVICE = {
+  normal: {bg:'#F0FDF4', border:'#10B981', title:'✅ No Action Required',
+    text:'Bearing is operating within normal parameters. Continue standard monitoring schedule. Re-grease every 2,000 hours.'},
+  ball: [
+    {bg:'#FFFBEB', border:'#F59E0B', title:'⚠️ Ball Fault — Low Severity',
+      text:'Increase inspection frequency to weekly. Monitor kurtosis trend. Plan replacement at next scheduled downtime (within 6 months).'},
+    {bg:'#FFF7ED', border:'#F97316', title:'🔶 Ball Fault — Moderate Severity',
+      text:'Schedule replacement within 4–6 weeks. Investigate contamination source. Check sealing integrity.'},
+    {bg:'#FEF2F2', border:'#EF4444', title:'🔴 Ball Fault — Critical Severity',
+      text:'Replace within 1–2 weeks. Operate with continuous vibration monitoring. Identify root cause: fatigue, brinelling, or inadequate lubrication.'}
+  ],
+  inner: [
+    {bg:'#F5F3FF', border:'#A78BFA', title:'⚠️ Inner Race Fault — Low Severity',
+      text:'Schedule replacement promptly. Check shaft alignment and balance. Inner race faults propagate faster than outer race.'},
+    {bg:'#EDE9FE', border:'#8B5CF6', title:'🔶 Inner Race Fault — Moderate Severity',
+      text:'Replace within 2–4 weeks. Inner race defects accelerate under load. Verify coupling alignment.'},
+    {bg:'#EDE9FE', border:'#7C3AED', title:'🔴 Inner Race Fault — Critical Severity',
+      text:'IMMEDIATE replacement required. Inner race fault at this severity risks catastrophic failure. Stop machine if vibration exceeds ISO Zone D.'}
+  ],
+  outer: [
+    {bg:'#EFF6FF', border:'#60A5FA', title:'⚠️ Outer Race Fault — Low Severity',
+      text:'Despite small pit size, outer race faults generate very high vibration. Replace within 2 weeks. Check for overloading.'},
+    {bg:'#DBEAFE', border:'#3B82F6', title:'🔶 Outer Race Fault — Moderate Severity',
+      text:'Replace within 1 week. Outer race at load zone creates periodic high-amplitude impacts. Investigate contamination.'},
+    {bg:'#DBEAFE', border:'#1D4ED8', title:'🔴 Outer Race Fault — Critical Severity',
+      text:'IMMEDIATE shutdown and replacement. OR fault at 0.021" generates extreme vibration (ISO Zone D). Document root cause post-replacement.'}
+  ]
+};
+
+// ============================================================
+// STEP MANAGEMENT
+// ============================================================
+function activateStep(n) {
+  for(let i=1; i<=6; i++) {
+    const el = document.getElementById('step-'+i);
+    if(i < n) { el.classList.add('done'); el.classList.remove('active'); setStatus(i,'done'); }
+    else if(i === n) { el.classList.add('active'); el.classList.remove('done'); setStatus(i,'active'); }
+  }
+}
+
+function setStatus(n, state) {
+  const el = document.getElementById('s'+n+'-status');
+  if(!el) return;
+  const map = {
+    pending: {cls:'status-pending', text:'Pending'},
+    active:  {cls:'status-active',  text:'⏳ Processing…'},
+    done:    {cls:'status-done',    text:'✅ Complete'},
+    waiting: {cls:'status-active',  text:'⏳ Waiting for file'},
+  };
+  const s = map[state] || map.pending;
+  el.className = 'status-chip ' + s.cls;
+  el.textContent = s.text;
+}
+
+// ============================================================
+// FILE UPLOAD
+// ============================================================
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+async function handleFile(file) {
+  if(!file || !file.name.endsWith('.mat')) {
+    alert('Please upload a .mat file from the CWRU dataset.');
+    return;
+  }
+
+  // Show progress
+  document.getElementById('upload-progress').style.display = 'block';
+  const bar = document.getElementById('upload-bar');
+  const txt = document.getElementById('upload-text');
+  bar.style.width = '20%'; txt.textContent = 'Uploading ' + file.name + '…';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    bar.style.width = '50%'; txt.textContent = 'Sending to server…';
+
+    const resp = await fetch('http://127.0.0.1:5000/api/pipeline/upload', { method:'POST', body: formData });
+    if(!resp.ok) throw new Error('Upload failed: ' + resp.statusText);
+
+    bar.style.width = '80%'; txt.textContent = 'Parsing MATLAB file…';
+    const data = await resp.json();
+
+    bar.style.width = '100%'; txt.textContent = '✅ File parsed successfully!';
+    uploadedFilename = data.filename;
+    totalWindows = data.n_windows;
+
+    // Update drop zone
+    dropZone.classList.add('uploaded');
+    dropZone.innerHTML = `<div class="drop-icon">✅</div><div class="drop-title">${file.name}</div><div class="drop-sub">File loaded — ${data.total_samples.toLocaleString()} samples detected</div>`;
+
+    setStatus(1, 'done');
+
+    // Move to step 2
+    setTimeout(() => showParsedVariables(data), 500);
+
+  } catch(err) {
+    bar.style.width = '100%'; bar.style.background = 'var(--red)';
+    txt.textContent = '❌ Error: ' + err.message;
+    console.error(err);
+  }
+}
+
+// ============================================================
+// STEP 2: PARSE VARIABLES
+// ============================================================
+function showParsedVariables(data) {
+  activateStep(2);
+
+  const varList = document.getElementById('var-list');
+  varList.innerHTML = data.variables.map(v => {
+    const isDe = v.name.includes('DE');
+    const isFe = v.name.includes('FE');
+    const cls = isDe ? 'de' : isFe ? 'fe' : '';
+    return `<div class="var-chip ${cls}" style="animation:slideIn .4s ease both;animation-delay:${Math.random()*.3}s">
+      ${isDe ? '📡' : isFe ? '📶' : '📋'} ${v.name}
+      <span style="font-size:.6rem;opacity:.7">${v.shape}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('var-count').textContent = data.variables.length + ' variables';
+  document.getElementById('file-info').style.display = 'block';
+  document.getElementById('info-samples').textContent = data.total_samples.toLocaleString();
+  document.getElementById('info-duration').textContent = data.duration_seconds.toFixed(2) + 's';
+  document.getElementById('info-windows').textContent = data.n_windows;
+
+  setStatus(2, 'done');
+
+  // Move to step 3
+  setTimeout(() => loadFullSignal(), 800);
+}
+
+// ============================================================
+// STEP 3: FULL SIGNAL CHART
+// ============================================================
+async function loadFullSignal() {
+  activateStep(3);
+
+  try {
+    const resp = await fetch('http://127.0.0.1:5000/api/pipeline/signal', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename: uploadedFilename})
+    });
+    const data = await resp.json();
+
+    document.getElementById('signal-info').textContent =
+      `${data.de_key} · ${data.total_samples.toLocaleString()} samples · 48 kHz`;
+
+    const ctx = document.getElementById('full-signal-chart').getContext('2d');
+    if(fullSignalChart) fullSignalChart.destroy();
+
+    fullSignalChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.signal.map((_,i) => i),
+        datasets: [{
+          data: data.signal,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,.08)',
+          borderWidth: 1,
+          fill: true,
+          pointRadius: 0,
+          tension: 0,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:{duration:600},
+        plugins: { legend:{display:false}, tooltip:{
+          backgroundColor:'#1e293b', callbacks:{label: ctx => `Amplitude: ${ctx.parsed.y.toFixed(4)} g`}
+        }},
+        scales: {
+          x: {grid:{color:'#1e293b'},ticks:{display:false},title:{display:true,text:'Sample Index (downsampled)',color:'#64748b',font:{size:10}}},
+          y: {grid:{color:'#1e293b'},ticks:{color:'#64748b',font:{size:10}},title:{display:true,text:'Acceleration (g)',color:'#64748b',font:{size:10}}}
+        }
+      }
+    });
+
+    setStatus(3, 'done');
+    setTimeout(() => initWindowing(), 600);
+
+  } catch(err) {
+    console.error('Signal load error:', err);
+  }
+}
+
+// ============================================================
+// STEP 4: WINDOWING
+// ============================================================
+function initWindowing() {
+  activateStep(4);
+
+  const timeline = document.getElementById('window-timeline');
+  const blocks = [];
+  for(let i=0; i<totalWindows; i++) {
+    blocks.push(`<div class="win-block${i===0?' selected':''}" data-idx="${i}" onclick="selectWindow(${i})"></div>`);
+  }
+  timeline.innerHTML = blocks.join('');
+
+  document.getElementById('window-input').max = totalWindows - 1;
+  document.getElementById('window-total').textContent = '/ ' + totalWindows;
+  document.getElementById('window-input').addEventListener('change', e => {
+    selectWindow(parseInt(e.target.value) || 0);
+  });
+
+  selectWindow(0);
+  setStatus(4, 'done');
+}
+
+async function selectWindow(idx) {
+  selectedWindow = idx;
+  document.getElementById('window-input').value = idx;
+
+  // Update timeline
+  document.querySelectorAll('.win-block').forEach(b => b.classList.remove('selected'));
+  const blocks = document.querySelectorAll('.win-block');
+  if(blocks[idx]) {
+    blocks[idx].classList.add('selected');
+    blocks[idx].scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+  }
+
+  // Load window data
+  try {
+    const resp = await fetch('http://127.0.0.1:5000/api/pipeline/window', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename: uploadedFilename, window_index: idx})
+    });
+    const data = await resp.json();
+
+    document.getElementById('window-info').textContent =
+      `Window ${idx} · Samples ${data.start_sample}–${data.end_sample}`;
+    document.getElementById('window-chart-label').textContent =
+      `📊 Window ${idx} — 2048 samples`;
+
+    const ctx = document.getElementById('window-chart').getContext('2d');
+    if(windowChart) windowChart.destroy();
+
+    windowChart = new Chart(ctx, {
+      type:'line',
+      data: {
+        labels: data.window.map((_,i) => data.start_sample + i),
+        datasets: [{
+          data: data.window,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,.08)',
+          borderWidth: 1.5,
+          fill: true,
+          pointRadius: 0,
+          tension: 0,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:{duration:400},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e293b',
+          callbacks:{label:ctx=>`Sample ${ctx.label}: ${ctx.parsed.y.toFixed(5)} g`}}},
+        scales:{
+          x:{grid:{color:'#1e293b'},ticks:{color:'#64748b',maxTicksLimit:8,font:{size:9}},
+            title:{display:true,text:'Sample Index',color:'#64748b',font:{size:10}}},
+          y:{grid:{color:'#1e293b'},ticks:{color:'#64748b',font:{size:10}},
+            title:{display:true,text:'Acceleration (g)',color:'#64748b',font:{size:10}}}
+        }
+      }
+    });
+  } catch(err) {
+    console.error('Window load error:', err);
+  }
+}
+
+// ============================================================
+// STEP 5+6: ANALYZE WINDOW (FEATURES + PREDICTION)
+// ============================================================
+async function analyzeWindow() {
+  activateStep(5);
+
+  try {
+    // Step 5: Features
+    const featResp = await fetch('http://127.0.0.1:5000/api/pipeline/features', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename: uploadedFilename, window_index: selectedWindow})
+    });
+    const featData = await featResp.json();
+    showFeatures(featData);
+    setStatus(5, 'done');
+
+    // Step 6: Prediction
+    await new Promise(r => setTimeout(r, 600));
+    activateStep(6);
+
+    const predResp = await fetch('http://127.0.0.1:5000/api/pipeline/predict', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename: uploadedFilename, window_index: selectedWindow})
+    });
+    const predData = await predResp.json();
+    showPredictions(predData, featData);
+    setStatus(6, 'done');
+
+  } catch(err) {
+    console.error('Analysis error:', err);
+    alert('Analysis failed. Make sure the Flask server is running at localhost:5000.');
+  }
+}
+
+function showFeatures(data) {
+  const feats = data.features;
+  const scaled = data.scaled_features || [];
+  const names = ['max','min','mean','sd','rms','skewness','kurtosis','crest','form'];
+  const tbody = document.getElementById('feat-tbody');
+  tbody.innerHTML = names.map((f,i) => `
+    <tr style="animation-delay:${i*0.06}s" class="feat-animated">
+      <td style="font-family:var(--mono);color:var(--muted);font-weight:700">${i+1}</td>
+      <td><strong>${f}</strong></td>
+      <td style="font-family:var(--mono);font-size:.72rem;color:var(--muted)">${FEAT_FORMULAS[f]||'—'}</td>
+      <td class="feat-val" style="color:var(--pri)">${typeof feats[f]==='number'?feats[f].toFixed(6):'—'}</td>
+      <td class="feat-val" style="color:var(--violet)">${scaled[i]!==undefined?scaled[i].toFixed(6):'—'}</td>
+    </tr>
+  `).join('');
+}
+
+function showPredictions(data, featData) {
+  // RF Result
+  const rf = data.rf_prediction;
+  const rfMeta = FAULT_META[rf.class] || {label:rf.class, icon:'❓', color:'#999', sev:0, type:'unknown'};
+  const rfConf = (rf.confidence * 100).toFixed(1);
+  document.getElementById('rf-result').style.background = `linear-gradient(135deg,${rfMeta.color}22,${rfMeta.color}11)`;
+  document.getElementById('rf-icon').textContent = rfMeta.icon;
+  document.getElementById('rf-class').textContent = rfMeta.label;
+  document.getElementById('rf-class').style.color = rfMeta.color;
+  document.getElementById('rf-conf').textContent = rfConf + '%';
+  document.getElementById('rf-conf').style.color = rfMeta.color;
+  document.getElementById('rf-tag').style.display = '';
+  renderProbBars('rf-probs', rf.probabilities);
+
+  // SVM Result
+  const svm = data.svm_prediction;
+  const svmMeta = FAULT_META[svm.class] || {label:svm.class, icon:'❓', color:'#999', sev:0, type:'unknown'};
+  const svmConf = (svm.confidence * 100).toFixed(1);
+  document.getElementById('svm-result').style.background = `linear-gradient(135deg,${svmMeta.color}22,${svmMeta.color}11)`;
+  document.getElementById('svm-icon').textContent = svmMeta.icon;
+  document.getElementById('svm-class').textContent = svmMeta.label;
+  document.getElementById('svm-class').style.color = svmMeta.color;
+  document.getElementById('svm-conf').textContent = svmConf + '%';
+  document.getElementById('svm-conf').style.color = svmMeta.color;
+  document.getElementById('svm-tag').style.display = '';
+  renderProbBars('svm-probs', svm.probabilities);
+
+  // Maintenance advice (based on RF prediction)
+  showMaintenance(rfMeta);
+}
+
+function renderProbBars(containerId, probs) {
+  const sorted = Object.entries(probs).sort((a,b) => b[1] - a[1]);
+  document.getElementById(containerId).innerHTML = sorted.map(([cls, prob]) => {
+    const m = FAULT_META[cls] || {label:cls, color:'#999'};
+    const pct = (prob * 100).toFixed(1);
+    const isTop = sorted[0][0] === cls;
+    return `<div class="prob-item" style="opacity:${isTop?1:0.55}">
+      <div class="prob-hd">
+        <span style="font-size:.72rem;font-weight:${isTop?700:500};color:${isTop?m.color:'inherit'}">${m.icon||''} ${m.label}</span>
+        <span style="font-size:.72rem;font-weight:700;font-family:var(--mono);color:${isTop?m.color:'var(--muted)'}">${pct}%</span>
+      </div>
+      <div class="prob-bar-bg"><div class="prob-bar-fill" style="width:${pct}%;background:${m.color}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function showMaintenance(meta) {
+  const card = document.getElementById('maint-card');
+  card.style.display = '';
+
+  let advice;
+  if(meta.type === 'normal') {
+    advice = MAINT_ADVICE.normal;
+  } else {
+    const arr = MAINT_ADVICE[meta.type] || MAINT_ADVICE.normal;
+    if(Array.isArray(arr)) advice = arr[Math.min(meta.sev - 1, arr.length - 1)];
+    else advice = arr;
+  }
+
+  document.getElementById('maint-body').innerHTML = `
+    <div class="maint-card" style="background:${advice.bg};border-color:${advice.border}">
+      <div style="font-size:.95rem;font-weight:800;margin-bottom:.5rem">${advice.title}</div>
+      <div style="font-size:.82rem;color:var(--tx);line-height:1.6">${advice.text}</div>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">
+      📋 Based on the <strong>Random Forest</strong> primary model prediction. Both RF and SVM classifiers are trained on the CWRU Bearing Dataset (2,370 samples, 10 fault classes).
+    </div>`;
+}
+
+// ============================================================
+// SERVER STATUS CHECK
+// ============================================================
+async function checkServer() {
+  try {
+    const resp = await fetch('http://127.0.0.1:5000/api/health');
+    if(resp.ok) {
+      document.getElementById('server-status').innerHTML =
+        '<div style="width:8px;height:8px;background:#10B981;border-radius:50%"></div><span style="color:#10B981;font-weight:700">Server Online</span>';
+    }
+  } catch(e) {
+    document.getElementById('server-status').innerHTML =
+      '<div style="width:8px;height:8px;background:#EF4444;border-radius:50%"></div><span style="color:#EF4444;font-weight:700">Server Offline — Start Flask</span>';
+  }
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  checkServer();
+  setStatus(1, 'waiting');
+});
+</script>
+</body>
+</html>

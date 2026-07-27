@@ -1,0 +1,297 @@
+/* ================================================================
+   BearingIQ — Analysis Page Styles
+   ================================================================ */
+
+/* ── Filter toolbar ─────────────────────────────────────────── */
+.analysis-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  background: var(--clr-surface);
+  border: 2px solid var(--clr-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-6);
+  margin-bottom: var(--sp-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbar-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* ── Stats overview ─────────────────────────────────────────── */
+.stats-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-6);
+}
+
+/* ── Feature selector tabs ──────────────────────────────────── */
+.feature-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--clr-border);
+  margin-bottom: var(--sp-6);
+  padding-bottom: 0;
+}
+
+.feat-tab {
+  padding: 10px 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  border: 2px solid transparent;
+  border-bottom: none;
+  transition: all var(--t-fast);
+  font-family: var(--font-mono);
+  background: transparent;
+  margin-bottom: -2px;
+}
+
+.feat-tab:hover {
+  color: var(--clr-primary);
+  background: var(--clr-primary-light);
+}
+
+.feat-tab.active {
+  color: var(--clr-primary);
+  background: var(--clr-surface);
+  border-color: var(--clr-border);
+  border-bottom-color: var(--clr-surface);
+  font-weight: 700;
+}
+
+/* ── Statistics table ───────────────────────────────────────── */
+.stats-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--r-md);
+  border: 2px solid var(--clr-border);
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.stats-table th {
+  background: var(--clr-surface-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--clr-text-muted);
+  border-bottom: 2px solid var(--clr-border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.stats-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--clr-surface-2);
+}
+
+.stats-table td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--clr-border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.stats-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--clr-surface);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.82rem;
+  z-index: 1;
+}
+
+.stats-table tr:hover td {
+  background: var(--clr-primary-light);
+}
+
+.stats-table tr:hover td:first-child {
+  background: var(--clr-primary-light);
+}
+
+.stats-table tr:last-child td { border-bottom: none; }
+
+/* ── Heat-mapped cell values ─────────────────────────────────── */
+.heat-cell {
+  position: relative;
+  font-weight: 600;
+}
+
+/* ── Heatmap legend ─────────────────────────────────────────── */
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: 0.72rem;
+  color: var(--clr-text-muted);
+  margin-top: var(--sp-3);
+}
+
+.heatmap-gradient {
+  width: 140px;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(to right, #EEF2FF, #4F46E5);
+}
+
+/* ── Boxplot chart section ───────────────────────────────────── */
+.boxplot-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.select-styled {
+  padding: 8px 14px;
+  border: 2px solid var(--clr-border);
+  border-radius: var(--r-md);
+  background: var(--clr-surface);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--clr-text);
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+  outline: none;
+}
+
+.select-styled:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+
+/* ── Radar chart section ─────────────────────────────────────── */
+.radar-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-6);
+}
+
+/* ── Correlation heatmap ─────────────────────────────────────── */
+.correlation-grid {
+  display: grid;
+  gap: 2px;
+  aspect-ratio: 1;
+}
+
+.corr-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border-radius: 3px;
+  aspect-ratio: 1;
+  transition: transform var(--t-fast);
+}
+
+.corr-cell:hover { transform: scale(1.1); z-index: 10; }
+
+.corr-label-row,
+.corr-label-col {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Export button area ─────────────────────────────────────── */
+.export-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0 0;
+}
+
+/* ── Summary stat cards ─────────────────────────────────────── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.summary-card {
+  background: var(--clr-surface-2);
+  border: 2px solid var(--clr-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  transition: all var(--t-fast);
+}
+
+.summary-card:hover {
+  border-color: var(--clr-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-card-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--clr-text-muted);
+}
+
+.summary-card-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--clr-primary);
+  letter-spacing: -0.5px;
+}
+
+.summary-card-sub {
+  font-size: 0.72rem;
+  color: var(--clr-text-light);
+}
+
+/* ── Class comparison ─────────────────────────────────────────── */
+.class-compare-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--clr-border);
+  margin-bottom: var(--sp-2);
+  transition: all var(--t-fast);
+}
+
+.class-compare-row:hover {
+  border-color: var(--row-border, var(--clr-primary));
+  background: rgba(79,70,229,.03);
+}
+
+@media (max-width: 900px) {
+  .radar-section { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+}

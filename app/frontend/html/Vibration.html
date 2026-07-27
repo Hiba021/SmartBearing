@@ -1,0 +1,1718 @@
+cat > /tmp/gen_platform.py << 'PYEOF'
+import json
+
+with open('/tmp/bearing_full.json') as f:
+    DB = json.load(f)
+
+with open('/tmp/waveforms.json') as f:
+    WV = json.load(f)
+
+DB_JSON = json.dumps(DB, separators=(',',':'))
+WV_JSON = json.dumps(WV, separators=(',',':'))
+
+HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibrationLab — Bearing Fault Science & Diagnostics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+/* ── TOKENS ── */
+:root{
+  --bg:#070B14;--surf:#0D1421;--surf2:#111827;--surf3:#1A2235;
+  --brd:#1E2D45;--brd2:#2A3F5F;
+  --cyan:#00D4FF;--cyanl:#00D4FF22;--cyand:#0099BB;
+  --amber:#F59E0B;--amberl:#F59E0B22;
+  --red:#EF4444;--redl:#EF444422;
+  --green:#10B981;--greenl:#10B98122;
+  --violet:#8B5CF6;--violetl:#8B5CF622;
+  --blue:#3B82F6;--bluel:#3B82F622;
+  --tx:#E2E8F0;--muted:#64748B;--light:#94A3B8;
+  --r:10px;--rl:16px;--rx:22px;
+  --sh:0 4px 24px rgba(0,212,255,.08);
+  --shm:0 8px 40px rgba(0,212,255,.14);
+  --mono:'JetBrains Mono',monospace;--sans:'Space Grotesk',sans-serif;--disp:'Space Mono',monospace;
+  --sw:260px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;display:flex;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--surf)}
+::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sw);min-height:100vh;background:var(--surf);
+  border-right:1px solid var(--brd);display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;
+}
+.logo-wrap{padding:1.5rem 1.25rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:.75rem}
+.logo-mark{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-family:var(--disp);font-weight:700;color:var(--bg);
+  box-shadow:0 0 20px rgba(0,212,255,.4);flex-shrink:0;
+}
+.logo-text{display:flex;flex-direction:column}
+.logo-name{font-family:var(--disp);font-size:1rem;font-weight:700;
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px}
+.logo-sub{font-size:.58rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+
+.sidebar-nav{flex:1;padding:.75rem .75rem;display:flex;flex-direction:column;gap:2px}
+.nav-sec{font-size:.58rem;font-weight:600;color:var(--muted);letter-spacing:2px;text-transform:uppercase;
+  padding:.75rem .75rem .35rem;margin-top:.25rem}
+.nav-it{display:flex;align-items:center;gap:.65rem;padding:.55rem .75rem;border-radius:var(--r);
+  font-size:.8rem;font-weight:500;color:var(--muted);transition:all .15s;cursor:pointer;
+  border-left:2px solid transparent}
+.nav-it:hover{background:var(--cyanl);color:var(--cyan);border-left-color:var(--cyan)}
+.nav-it.active{background:var(--cyanl);color:var(--cyan);border-left-color:var(--cyan);font-weight:600}
+.nav-it-ic{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--cyan);color:var(--bg);font-size:.55rem;font-weight:700;padding:2px 6px;border-radius:20px;font-family:var(--disp)}
+.sidebar-foot{padding:1rem 1.25rem;border-top:1px solid var(--brd);font-size:.65rem;color:var(--muted)}
+.sidebar-foot strong{display:block;color:var(--light);font-size:.7rem;margin-bottom:2px}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 2rem;height:58px;
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tb-title{font-family:var(--disp);font-size:.9rem;font-weight:700;color:var(--tx);letter-spacing:.5px}
+.tb-crumb{font-size:.68rem;color:var(--muted);margin-top:1px}
+.tb-right{display:flex;align-items:center;gap:.65rem}
+.tb-status{display:flex;align-items:center;gap:.4rem;background:var(--greenl);color:var(--green);
+  padding:4px 11px;border-radius:20px;font-size:.65rem;font-weight:600;border:1px solid var(--green)}
+.pulse{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+/* ── PAGES ── */
+.page{display:none;padding:2rem;max-width:1380px;margin:0 auto;width:100%}
+.page.active{display:block;animation:fadeUp .35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARDS ── */
+.card{background:var(--surf2);border-radius:var(--rl);border:1px solid var(--brd);overflow:hidden;transition:all .2s}
+.card:hover{border-color:var(--brd2);box-shadow:var(--sh)}
+.card-hd{padding:1rem 1.4rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-family:var(--disp);font-size:.78rem;font-weight:700;color:var(--tx);letter-spacing:.5px;display:flex;align-items:center;gap:.5rem}
+.card-body{padding:1.4rem}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem 1.1rem;border-radius:var(--r);
+  font-size:.75rem;font-weight:600;transition:all .15s;border:1px solid transparent;cursor:pointer;font-family:var(--sans)}
+.btn-cyan{background:var(--cyan);color:var(--bg);border-color:var(--cyan);font-weight:700}
+.btn-cyan:hover{background:var(--cyand);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,212,255,.3)}
+.btn-cyan:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--brd)}
+.btn-ghost:hover{border-color:var(--brd2);color:var(--tx)}
+.btn-sm{padding:.35rem .8rem;font-size:.68rem}
+.btn-lg{padding:.75rem 1.75rem;font-size:.85rem}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.62rem;font-weight:600;border:1px solid transparent}
+.badge-cyan{background:var(--cyanl);color:var(--cyan);border-color:var(--cyan)40}
+.badge-amber{background:var(--amberl);color:var(--amber);border-color:var(--amber)40}
+.badge-red{background:var(--redl);color:var(--red);border-color:var(--red)40}
+.badge-green{background:var(--greenl);color:var(--green);border-color:var(--green)40}
+.badge-violet{background:var(--violetl);color:var(--violet);border-color:var(--violet)40}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.8rem 1.2rem;border-radius:var(--r);
+  font-size:.75rem;font-weight:600;display:flex;align-items:center;gap:.45rem;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(80px);transition:transform .3s,opacity .3s;
+  opacity:0;pointer-events:none;font-family:var(--sans)}
+
+/* ══════════════════════════════════════
+   PAGE 0 — INTRODUCTION / JOURNEY
+══════════════════════════════════════ */
+.journey-hero{
+  background:linear-gradient(135deg,#070B14 0%,#0D1A2E 50%,#0A1628 100%);
+  border:1px solid var(--brd);border-radius:var(--rx);padding:3rem;
+  position:relative;overflow:hidden;margin-bottom:2rem;
+}
+.journey-hero::before{content:'';position:absolute;top:-100px;right:-100px;width:400px;height:400px;
+  background:radial-gradient(circle,rgba(0,212,255,.08) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.journey-hero::after{content:'';position:absolute;bottom:-80px;left:10%;width:300px;height:300px;
+  background:radial-gradient(circle,rgba(139,92,246,.07) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.hero-eyebrow{font-family:var(--disp);font-size:.68rem;letter-spacing:3px;color:var(--cyan);
+  text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.hero-eyebrow::before{content:'';width:24px;height:1px;background:var(--cyan)}
+.journey-hero h1{font-family:var(--disp);font-size:2.8rem;font-weight:700;line-height:1.1;
+  letter-spacing:-1px;margin-bottom:1rem;color:var(--tx)}
+.hero-hl{background:linear-gradient(135deg,var(--cyan),var(--violet));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.journey-hero p{font-size:.95rem;color:var(--muted);max-width:580px;line-height:1.7;margin-bottom:1.75rem}
+.hero-btns{display:flex;gap:.75rem;flex-wrap:wrap}
+.hero-stats{display:flex;gap:2.5rem;margin-top:2rem;padding-top:2rem;border-top:1px solid var(--brd)}
+.hs-val{font-family:var(--disp);font-size:1.6rem;font-weight:700;color:var(--cyan)}
+.hs-lbl{font-size:.65rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+
+/* Journey steps */
+.journey-steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-bottom:2rem}
+.journey-step{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--rl);
+  padding:1.4rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.journey-step::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--sc,var(--cyan));transform:scaleX(0);transition:transform .3s;transform-origin:left}
+.journey-step:hover{border-color:var(--sc,var(--cyan));transform:translateY(-3px)}
+.journey-step:hover::before{transform:scaleX(1)}
+.step-num{font-family:var(--disp);font-size:2rem;font-weight:700;color:var(--sc,var(--cyan));opacity:.2;line-height:1;margin-bottom:.5rem}
+.step-icon{font-size:1.8rem;margin-bottom:.75rem}
+.step-title{font-weight:700;font-size:.92rem;color:var(--tx);margin-bottom:.4rem}
+.step-desc{font-size:.75rem;color:var(--muted);line-height:1.6}
+.step-goto{font-size:.68rem;color:var(--sc,var(--cyan));font-weight:600;margin-top:.75rem;display:flex;align-items:center;gap:.3rem}
+
+/* Source cards */
+.sources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
+.source-card{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);
+  padding:1.1rem;display:flex;gap:.85rem;align-items:flex-start;transition:all .2s}
+.source-card:hover{border-color:var(--brd2);transform:translateX(3px)}
+.src-ic{font-size:1.4rem;flex-shrink:0;margin-top:2px}
+.src-type{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.3rem}
+.src-title{font-size:.8rem;font-weight:600;color:var(--tx);margin-bottom:.25rem;line-height:1.4}
+.src-desc{font-size:.7rem;color:var(--muted);line-height:1.5}
+.src-link{font-size:.68rem;color:var(--cyan);margin-top:.4rem;display:flex;align-items:center;gap:.25rem;word-break:break-all}
+
+/* ══════════════════════════════════════
+   PAGE 1 — THE MOTOR & BEARING SCIENCE
+══════════════════════════════════════ */
+.science-layout{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.sci-full{grid-column:1/-1}
+
+/* Bearing SVG diagram */
+.bearing-diagram{display:flex;flex-direction:column;align-items:center;gap:.75rem}
+.bearing-svg-wrap{position:relative;cursor:pointer}
+.part-label{position:absolute;font-size:.62rem;font-weight:700;font-family:var(--disp);
+  background:var(--surf3);border:1px solid var(--brd);padding:3px 8px;border-radius:20px;
+  color:var(--tx);white-space:nowrap;pointer-events:none;transition:all .2s}
+.part-label.active{background:var(--cyanl);border-color:var(--cyan);color:var(--cyan)}
+
+/* Info panel */
+.info-panel{background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);
+  padding:1.2rem;min-height:120px;transition:all .2s}
+.info-panel-title{font-weight:700;font-size:.85rem;margin-bottom:.5rem;color:var(--cyan)}
+.info-panel-body{font-size:.78rem;color:var(--muted);line-height:1.65}
+
+/* Failure mode cards */
+.fail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem}
+.fail-card{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);
+  padding:1rem;border-top:2px solid var(--fc,var(--cyan));transition:all .15s}
+.fail-card:hover{transform:translateY(-2px);box-shadow:var(--sh)}
+.fail-icon{font-size:1.5rem;margin-bottom:.4rem}
+.fail-title{font-size:.78rem;font-weight:700;color:var(--tx);margin-bottom:.3rem}
+.fail-desc{font-size:.7rem;color:var(--muted);line-height:1.55}
+
+/* EDM process */
+.edm-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem}
+.edm-step{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);
+  padding:.9rem .75rem;text-align:center;position:relative}
+.edm-step::after{content:'→';position:absolute;right:-10px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:.75rem;z-index:2}
+.edm-step:last-child::after{display:none}
+.edm-num{font-family:var(--disp);font-size:1.2rem;font-weight:700;color:var(--amber);opacity:.5;margin-bottom:.3rem}
+.edm-ic{font-size:1.4rem;margin-bottom:.4rem}
+.edm-lbl{font-size:.65rem;font-weight:600;color:var(--tx)}
+.edm-sub{font-size:.6rem;color:var(--muted);margin-top:2px}
+
+/* Freq table */
+.freq-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.freq-table th{padding:.5rem .75rem;background:var(--surf3);font-family:var(--disp);font-size:.65rem;
+  letter-spacing:.5px;color:var(--muted);text-align:left;border-bottom:1px solid var(--brd);font-weight:400;text-transform:uppercase}
+.freq-table td{padding:.5rem .75rem;border-bottom:1px solid var(--brd)40;font-size:.73rem}
+.freq-table tr:hover td{background:var(--surf3)}
+.freq-table tr:last-child td{border-bottom:none}
+.freq-mono{font-family:var(--disp);font-size:.7rem;color:var(--cyan)}
+
+/* ══════════════════════════════════════
+   PAGE 2 — SIGNAL & SENSOR
+══════════════════════════════════════ */
+.sensor-layout{display:grid;grid-template-columns:1.2fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+
+/* Signal wave canvas */
+.signal-canvas-wrap{background:var(--surf3);border-radius:var(--r);border:1px solid var(--brd);padding:1rem;
+  position:relative;overflow:hidden}
+.sig-selector{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem}
+.sig-btn{padding:.3rem .75rem;border-radius:20px;font-size:.65rem;font-weight:600;
+  border:1px solid var(--brd);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--sans)}
+.sig-btn.active{border-color:var(--sc,var(--cyan));background:var(--cyanl);color:var(--cyan)}
+.sig-btn:hover{border-color:var(--brd2);color:var(--tx)}
+
+/* Accelerometer 3D SVG */
+.accel-diagram{display:flex;flex-direction:column;gap:1rem}
+.accel-pos{background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);
+  padding:1rem;display:flex;gap:.85rem;align-items:flex-start;cursor:pointer;transition:all .15s}
+.accel-pos:hover,.accel-pos.active{border-color:var(--ap-color,var(--cyan));background:var(--ap-color,var(--cyan))11}
+.accel-dot{width:10px;height:10px;border-radius:50%;background:var(--ap-color,var(--cyan));
+  box-shadow:0 0 8px var(--ap-color,var(--cyan));flex-shrink:0;margin-top:3px}
+.accel-name{font-size:.8rem;font-weight:700;color:var(--tx)}
+.accel-desc{font-size:.68rem;color:var(--muted);line-height:1.5;margin-top:2px}
+
+/* Feature viz */
+.feat-explain{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.feat-ex-card{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);
+  padding:.9rem;border-top:2px solid var(--fc,var(--cyan))}
+.feat-ex-name{font-family:var(--disp);font-size:.72rem;font-weight:700;color:var(--fc,var(--cyan));margin-bottom:.3rem;letter-spacing:.5px}
+.feat-ex-formula{font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-bottom:.4rem;background:var(--surf3);padding:3px 6px;border-radius:4px;display:inline-block}
+.feat-ex-desc{font-size:.7rem;color:var(--muted);line-height:1.5}
+
+/* ══════════════════════════════════════
+   PAGE 3 — DATASET EXPLORER
+══════════════════════════════════════ */
+.ds-layout{display:grid;grid-template-columns:1.5fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.ds-full{grid-column:1/-1}
+.file-tree{font-family:var(--mono);font-size:.72rem;background:var(--surf3);border:1px solid var(--brd);
+  border-radius:var(--r);padding:1.1rem;line-height:1.9}
+.ft-folder{color:var(--amber);font-weight:700}
+.ft-file{color:var(--cyan)}
+.ft-mat{color:var(--violet)}
+.ft-npz{color:var(--green)}
+.ft-csv{color:var(--amber)}
+.ft-comment{color:var(--muted);font-size:.65rem}
+.ft-indent{margin-left:1.2rem}
+.file-decode{background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:1.1rem}
+.fd-name{font-family:var(--disp);font-size:1rem;font-weight:700;color:var(--cyan);margin-bottom:1rem;letter-spacing:1px}
+.fd-part{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem}
+.fd-chunk{font-family:var(--disp);font-size:.85rem;padding:.2rem .5rem;border-radius:5px;font-weight:700}
+.fd-arrow{color:var(--muted);font-size:.75rem}
+.fd-meaning{font-size:.75rem;color:var(--muted)}
+.fd-meaning strong{color:var(--tx);font-weight:600}
+
+.pipeline-flow{display:grid;grid-template-columns:repeat(7,1fr);gap:0;align-items:center;margin:1.5rem 0}
+.pipe-box{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);
+  padding:.85rem .6rem;text-align:center;position:relative}
+.pipe-box::after{content:'›';position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+  color:var(--cyan);font-size:1rem;z-index:2}
+.pipe-box:last-child::after{display:none}
+.pipe-ic{font-size:1.2rem;margin-bottom:.3rem}
+.pipe-lbl{font-size:.6rem;font-weight:600;color:var(--tx);line-height:1.3}
+.pipe-sub{font-size:.55rem;color:var(--muted);margin-top:2px}
+
+/* ══════════════════════════════════════
+   PAGE 4 — 3D BEARING MONITOR
+══════════════════════════════════════ */
+.monitor-layout{display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start}
+.monitor-3d-wrap{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--rl);
+  overflow:hidden;position:relative;height:500px}
+.monitor-3d-canvas{width:100%;height:100%}
+.monitor-3d-overlay{position:absolute;top:1rem;left:1rem;right:1rem;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.monitor-badge-wrap{display:flex;gap:.5rem;flex-wrap:wrap}
+.monitor-health{font-family:var(--disp);font-size:.7rem;padding:.3rem .8rem;border-radius:20px;font-weight:700;border:1px solid}
+.monitor-controls{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);
+  display:flex;gap:.5rem;pointer-events:all}
+
+.alert-panel{display:flex;flex-direction:column;gap:.75rem}
+.alert-card{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);padding:1rem;
+  transition:all .2s;border-left:3px solid var(--ac,var(--brd))}
+.alert-card.active{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,var(--surf2))}
+.alert-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+.alert-type{font-size:.72rem;font-weight:700;color:var(--ac,var(--muted))}
+.alert-sev{padding:2px 7px;border-radius:20px;font-size:.6rem;font-weight:700;border:1px solid var(--ac)}
+.alert-body{font-size:.72rem;color:var(--muted);line-height:1.55}
+.alert-meta{font-size:.62rem;color:var(--muted);margin-top:.5rem;font-family:var(--disp)}
+.alert-detail{background:var(--surf3);border-radius:6px;padding:.6rem .75rem;margin-top:.6rem;font-size:.68rem;color:var(--muted);line-height:1.6}
+.alert-why{font-weight:600;color:var(--tx);margin-bottom:.2rem;font-size:.7rem}
+
+.predict-ctrl{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);padding:1.1rem}
+.predict-ctrl-title{font-family:var(--disp);font-size:.72rem;font-weight:700;margin-bottom:.85rem;color:var(--tx);letter-spacing:.5px}
+.presets-mini{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem}
+.pm-btn{padding:.28rem .65rem;border-radius:20px;font-size:.62rem;font-weight:600;
+  border:1px solid;cursor:pointer;transition:all .12s;background:transparent}
+.pm-btn:hover{opacity:.85}
+
+/* feat sliders compact */
+.feat-sl-rows{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem}
+.fsl-row{display:grid;grid-template-columns:52px 1fr 64px;align-items:center;gap:.5rem}
+.fsl-lbl{font-size:.62rem;font-weight:700;font-family:var(--mono);color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer}
+.fsl-num{width:100%;padding:.25rem .4rem;border:1px solid var(--brd);border-radius:6px;
+  font-size:.62rem;font-family:var(--mono);text-align:right;background:var(--surf3);color:var(--tx)}
+.fsl-num:focus{outline:none;border-color:var(--cyan)}
+
+/* Result */
+.result-display{background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:1rem;text-align:center}
+.rd-icon{font-size:2rem;margin-bottom:.4rem}
+.rd-cls{font-size:1rem;font-weight:700;margin-bottom:.2rem}
+.rd-conf{font-size:.7rem;color:var(--muted)}
+.rd-conf span{font-family:var(--disp);font-size:1.1rem;font-weight:700}
+.mini-sev{display:flex;align-items:center;justify-content:center;gap:.35rem;margin-top:.5rem}
+.mini-sev-dot{width:10px;height:10px;border-radius:50%;background:var(--brd)}
+.mini-sev-dot.on{background:var(--sc,var(--amber));box-shadow:0 0 6px var(--sc,var(--amber))}
+
+/* ══════════════════════════════════════
+   PAGE 5 — DASHBOARD (preserve from before)
+══════════════════════════════════════ */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.kpi{background:var(--surf2);border-radius:var(--rl);padding:1.3rem;border:1px solid var(--brd);
+  position:relative;overflow:hidden;transition:all .2s}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--cyan))}
+.kpi:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.kpi-ic{position:absolute;top:.8rem;right:.8rem;font-size:1.5rem;opacity:.1}
+.kpi-lbl{font-size:.62rem;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:.55rem}
+.kpi-val{font-family:var(--disp);font-size:1.7rem;font-weight:700;color:var(--tx);letter-spacing:-1px;line-height:1}
+.kpi-sub{margin-top:.35rem;font-size:.65rem;font-weight:600;color:var(--kc,var(--cyan))}
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+.chart-wrap{position:relative;height:250px}
+.chart-sq{position:relative;height:200px;width:200px;margin:0 auto}
+.bottom-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:1.25rem}
+.right-col{display:flex;flex-direction:column;gap:1rem}
+.cls-list{display:flex;flex-direction:column;gap:.4rem}
+.cls-row{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:var(--r);
+  border:1px solid var(--brd);transition:all .15s}
+.cls-row:hover{border-color:var(--rc,var(--cyan));background:rgba(0,212,255,.03);transform:translateX(2px)}
+.cls-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cls-name{flex:1;font-size:.75rem;font-weight:600}
+.cls-cnt{font-size:.65rem;color:var(--muted);font-family:var(--mono)}
+.cls-bar-w{flex:0 0 65px}
+.prog{height:5px;background:var(--brd);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;border-radius:99px}
+
+/* ══════════════════════════════════════
+   PAGE 6 — AI ADVISER
+══════════════════════════════════════ */
+.adv-layout{display:grid;grid-template-columns:280px 1fr;gap:1.25rem;height:calc(100vh - 150px)}
+.ctx-panel{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--rl);
+  display:flex;flex-direction:column;overflow:hidden}
+.ctx-hd{padding:.9rem 1.1rem;border-bottom:1px solid var(--brd);background:var(--surf3)}
+.ctx-hd-title{font-family:var(--disp);font-weight:700;font-size:.75rem;color:var(--tx);letter-spacing:.5px;display:flex;align-items:center;gap:.4rem}
+.ctx-hd-sub{font-size:.62rem;color:var(--muted);margin-top:2px}
+.ctx-body{flex:1;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.85rem}
+.adv-ps{display:flex;flex-wrap:wrap;gap:.35rem}
+.adv-pb{padding:.25rem .65rem;border-radius:20px;font-size:.62rem;font-weight:600;
+  border:1px solid;cursor:pointer;background:transparent;transition:all .12s;font-family:var(--sans)}
+.qi-rows{display:flex;flex-direction:column;gap:.4rem}
+.qi-row{display:grid;grid-template-columns:46px 1fr 62px;align-items:center;gap:.4rem}
+.qi-lbl{font-size:.6rem;font-weight:700;font-family:var(--mono);color:var(--muted)}
+.qi-num{width:100%;padding:.22rem .4rem;border:1px solid var(--brd);border-radius:6px;
+  font-size:.6rem;font-family:var(--mono);text-align:right;background:var(--surf3);color:var(--tx)}
+.qi-num:focus{outline:none;border-color:var(--cyan)}
+.btn-analyse{width:100%;padding:.65rem;border-radius:var(--r);
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  color:var(--bg);font-weight:700;font-size:.75rem;border:none;cursor:pointer;transition:all .15s;font-family:var(--sans)}
+.btn-analyse:hover{opacity:.9;transform:translateY(-1px)}
+.btn-analyse:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.ctx-result{background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:.8rem}
+.ctx-rlbl{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.4rem}
+.ctx-pill{display:inline-flex;align-items:center;gap:.3rem;padding:2px 9px;border-radius:20px;
+  font-size:.7rem;font-weight:700;border:1px solid;margin-bottom:.4rem}
+.chat-panel{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--rl);
+  display:flex;flex-direction:column;overflow:hidden}
+.chat-hd{padding:.9rem 1.1rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:.65rem}
+.adv-av{width:34px;height:34px;background:linear-gradient(135deg,var(--violet),var(--cyan));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.adv-nm{font-weight:700;font-size:.82rem;font-family:var(--disp)}
+.adv-st{font-size:.62rem;color:var(--green);display:flex;align-items:center;gap:.3rem;margin-top:1px}
+.chat-msgs{flex:1;overflow-y:auto;padding:1.1rem;display:flex;flex-direction:column;gap:.75rem}
+.msg-sys{text-align:center;font-size:.62rem;color:var(--muted);padding:.3rem .7rem;
+  background:var(--surf3);border-radius:20px;border:1px solid var(--brd);align-self:center;font-family:var(--disp)}
+.msg-bot{display:flex;gap:.55rem;align-items:flex-start}
+.msg-bot-av{width:28px;height:28px;background:linear-gradient(135deg,var(--violet),var(--cyan));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
+.msg-bot-b{background:var(--surf3);border:1px solid var(--brd);border-radius:0 var(--r) var(--r) var(--r);
+  padding:.65rem .9rem;font-size:.75rem;line-height:1.6;color:var(--tx);max-width:85%}
+.msg-user{display:flex;justify-content:flex-end}
+.msg-user-b{background:linear-gradient(135deg,var(--cyan)22,var(--violet)22);border:1px solid var(--brd2);
+  border-radius:var(--r) 0 var(--r) var(--r);padding:.6rem .9rem;font-size:.75rem;line-height:1.5;max-width:80%;color:var(--tx)}
+.typing-dots{display:flex;gap:4px;padding:.5rem .7rem;background:var(--surf3);border:1px solid var(--brd);
+  border-radius:0 var(--r) var(--r) var(--r)}
+.td{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:tdot 1.2s infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.chat-input-area{border-top:1px solid var(--brd);padding:.8rem 1rem}
+.qqs{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.6rem}
+.qq{padding:.25rem .65rem;border-radius:20px;font-size:.62rem;font-weight:600;
+  background:var(--cyanl);color:var(--cyan);border:1px solid var(--brd2);cursor:pointer;transition:all .12s;font-family:var(--sans)}
+.qq:hover{background:var(--cyan);color:var(--bg)}
+.chat-row{display:flex;gap:.45rem}
+.chat-inp{flex:1;padding:.55rem .85rem;border:1px solid var(--brd);border-radius:var(--r);
+  font-size:.75rem;background:var(--surf3);color:var(--tx);transition:border-color .15s}
+.chat-inp:focus{outline:none;border-color:var(--cyan)}
+.btn-send{padding:.55rem .85rem;border-radius:var(--r);background:var(--cyan);color:var(--bg);
+  font-weight:700;font-size:.85rem;border:none;cursor:pointer;transition:all .15s}
+.btn-send:hover{background:var(--cyand)}
+.adv-result-card{background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:.9rem;margin-top:.3rem}
+.arc-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem}
+.arc-sev{padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:700;border:1px solid}
+.arc-sec{margin-bottom:.65rem}
+.arc-sec-t{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.3rem}
+.arc-line{font-size:.72rem;color:var(--tx);line-height:1.55;padding:.15rem 0}
+
+/* ══════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════ */
+@media(max-width:1100px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-grid,.bottom-grid,.science-layout,.sensor-layout,.ds-layout,.monitor-layout{grid-template-columns:1fr}
+  .feat-explain{grid-template-columns:1fr 1fr}
+  .edm-steps{grid-template-columns:repeat(3,1fr)}
+  .pipeline-flow{grid-template-columns:repeat(4,1fr)}
+  .adv-layout{grid-template-columns:1fr;height:auto}
+}
+@media(max-width:768px){
+  :root{--sw:0px}
+  .sidebar{transform:translateX(-100%)}
+  .main{margin-left:0}
+  .page{padding:1rem}
+  .feat-explain{grid-template-columns:1fr}
+  .journey-steps{grid-template-columns:1fr}
+  .fail-grid,.sources-grid{grid-template-columns:1fr}
+  .edm-steps{grid-template-columns:1fr 1fr}
+  .pipeline-flow{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<script src="../js/sidebar.js"></script>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="main">
+<header class="topbar">
+  <div><div class="tb-title" id="tb-title">VIBRATIONLAB</div><div class="tb-crumb" id="tb-crumb">Introduction</div></div>
+  <div class="tb-right">
+    <div class="tb-status"><div class="pulse"></div>Offline · 2,300 samples loaded</div>
+    <button class="btn btn-cyan btn-sm" onclick="goto('monitor')">🔩 3D Monitor</button>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════
+     PAGE: INTRO
+════════════════════════════════════════ -->
+<div class="page active" id="page-intro">
+  <div class="journey-hero">
+    <div class="hero-eyebrow">bearing fault diagnosis platform</div>
+    <h1><span class="hero-hl">Vibration.</span><br>From physics to prediction.</h1>
+    <p>Every defect in a rotating bearing leaves a fingerprint in vibration data. VibrationLab teaches you how to read it — from the first crack on a steel race to the final ML classification.</p>
+    <div class="hero-btns">
+      <button class="btn btn-cyan btn-lg" onclick="goto('bearing')">Start the journey ›</button>
+      <button class="btn btn-ghost btn-lg" onclick="goto('monitor')">🔩 Jump to 3D Monitor</button>
+    </div>
+    <div class="hero-stats">
+      <div><div class="hs-val">48 kHz</div><div class="hs-lbl">Sampling Rate</div></div>
+      <div><div class="hs-val">2,048</div><div class="hs-lbl">Points / Window</div></div>
+      <div><div class="hs-val">10</div><div class="hs-lbl">Fault Classes</div></div>
+      <div><div class="hs-val">~97%</div><div class="hs-lbl">Classifier Accuracy</div></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1rem"><span style="font-family:var(--disp);font-size:.65rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase">The complete diagnostic journey</span></div>
+  <div class="journey-steps">
+    <div class="journey-step" style="--sc:#F59E0B" onclick="goto('bearing')">
+      <div class="step-num">01</div><div class="step-icon">⚙️</div>
+      <div class="step-title">Motor & Bearing Science</div>
+      <div class="step-desc">What is a bearing? How does it fail? Fatigue, misalignment, contamination — the physical root causes explained.</div>
+      <div class="step-goto">Explore physics ›</div>
+    </div>
+    <div class="journey-step" style="--sc:#00D4FF" onclick="goto('signal')">
+      <div class="step-num">02</div><div class="step-icon">📡</div>
+      <div class="step-title">Signals & Sensors</div>
+      <div class="step-desc">How does an accelerometer work? What does a defect look like as a waveform? What are kurtosis and RMS really measuring?</div>
+      <div class="step-goto">Understand signals ›</div>
+    </div>
+    <div class="journey-step" style="--sc:#8B5CF6" onclick="goto('dataset')">
+      <div class="step-num">03</div><div class="step-icon">🗂️</div>
+      <div class="step-title">Dataset Explorer</div>
+      <div class="step-desc">Where did the .mat files come from? What does B014_1_190.mat mean? Which accelerometer channel is in your CSV?</div>
+      <div class="step-goto">Decode the data ›</div>
+    </div>
+    <div class="journey-step" style="--sc:#10B981" onclick="goto('monitor')">
+      <div class="step-num">04</div><div class="step-icon">🔩</div>
+      <div class="step-title">Live 3D Monitor</div>
+      <div class="step-desc">Interactive bearing model. Load a preset or slide the features manually. Watch real-time alerts fire as faults appear.</div>
+      <div class="step-goto">Launch monitor ›</div>
+    </div>
+    <div class="journey-step" style="--sc:#3B82F6" onclick="goto('dashboard')">
+      <div class="step-num">05</div><div class="step-icon">🏠</div>
+      <div class="step-title">Dashboard</div>
+      <div class="step-desc">Feature importance, class distribution, correlation heatmap, per-class statistics — everything from your 2,300 samples.</div>
+      <div class="step-goto">View dashboard ›</div>
+    </div>
+    <div class="journey-step" style="--sc:#EF4444" onclick="goto('adviser')">
+      <div class="step-num">06</div><div class="step-icon">🤖</div>
+      <div class="step-title">AI Adviser</div>
+      <div class="step-desc">Load sensor readings, get a complete diagnostic report: fault type, severity, root cause, replacement timeline.</div>
+      <div class="step-goto">Ask the AI ›</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-hd"><div class="card-title">📚 Scientific Sources & References</div></div>
+    <div class="card-body">
+      <div class="sources-grid">
+        <div class="source-card">
+          <div class="src-ic">📄</div>
+          <div>
+            <div class="src-type" style="color:var(--red)">IEEE Journal</div>
+            <div class="src-title">Bearing fault diagnosis based on vibration signal analysis</div>
+            <div class="src-desc">Rolling element bearing fault frequencies and time-domain feature extraction for ML classification. The foundation for BPFO, BPFI, BSF calculations.</div>
+            <div class="src-link">🔗 ieeexplore.ieee.org/document/8533582</div>
+          </div>
+        </div>
+        <div class="source-card">
+          <div class="src-ic">📄</div>
+          <div>
+            <div class="src-type" style="color:var(--red)">IEEE Transactions</div>
+            <div class="src-title">A Review on Vibration-Based Fault Diagnosis Techniques for Rolling Element Bearings</div>
+            <div class="src-desc">Comprehensive survey of accelerometer placement strategies, kurtosis-based detection, and comparison of time vs. frequency-domain features.</div>
+            <div class="src-link">🔗 ieeexplore.ieee.org/document/9145398</div>
+          </div>
+        </div>
+        <div class="source-card">
+          <div class="src-ic">🏫</div>
+          <div>
+            <div class="src-type" style="color:var(--cyan)">University Dataset</div>
+            <div class="src-title">CWRU Bearing Data Center — Official Dataset</div>
+            <div class="src-desc">The original Case Western Reserve University experimental dataset. Includes raw .mat files from DE/FE/BA accelerometers under 4 load conditions. This is the source of your data.</div>
+            <div class="src-link">🔗 engineering.case.edu/bearingdatacenter</div>
+          </div>
+        </div>
+        <div class="source-card">
+          <div class="src-ic">📊</div>
+          <div>
+            <div class="src-type" style="color:var(--amber)">Kaggle Dataset</div>
+            <div class="src-title">CWRU Bearing Datasets — feature_time_48k_2048_load_1.csv</div>
+            <div class="src-desc">Community contribution making the CWRU data accessible. Includes pre-extracted 9-feature CSV (your Bearing.csv) and raw .mat files used in this project. License: CC BY-SA 4.0.</div>
+            <div class="src-link">🔗 kaggle.com/datasets/uysalserkan/fault-induction-motor-dataset</div>
+          </div>
+        </div>
+        <div class="source-card">
+          <div class="src-ic">📝</div>
+          <div>
+            <div class="src-type" style="color:var(--green)">Medium Article</div>
+            <div class="src-title">Predictive Maintenance with CWRU Bearing Data — XGBoost 98%</div>
+            <div class="src-desc">Step-by-step ML pipeline using XGBoost on the same dataset: data augmentation, GridSearchCV tuning, 97%+ accuracy. Closely mirrors the Kaggle notebook you shared.</div>
+            <div class="src-link">🔗 medium.com/@bearing-fault-ml-cwru</div>
+          </div>
+        </div>
+        <div class="source-card">
+          <div class="src-ic">💻</div>
+          <div>
+            <div class="src-type" style="color:var(--violet)">GitHub</div>
+            <div class="src-title">Bearing Fault Detection — Random Forest + SVM on CWRU</div>
+            <div class="src-desc">Open-source implementation of RF and SVM classifiers achieving ~98% accuracy with 5-fold CV. Includes feature extraction pipeline from raw .mat files to predictions.</div>
+            <div class="src-link">🔗 github.com/topics/cwru-bearing-dataset</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="card-title">🔬 The XGBoost Result from Your Kaggle Notebook</div><span class="badge badge-green">97.9% Accuracy</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <div>
+          <p style="font-size:.78rem;color:var(--muted);line-height:1.7;margin-bottom:1rem">The notebook you shared trains an <strong style="color:var(--tx)">XGBoost classifier</strong> on the exact same CSV file (feature_time_48k_2048_load_1.csv) with 2,300 rows and 9 features. After data augmentation (doubling to 4,600 rows by adding Gaussian noise) and GridSearchCV hyperparameter tuning with 3-fold CV, it achieves <strong style="color:var(--cyan)">97.9% test accuracy</strong>. Best parameters: learning_rate=0.3, max_depth=3, n_estimators=200, subsample=0.8.</p>
+          <div style="background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:.9rem;font-family:var(--mono);font-size:.68rem;line-height:1.8;color:var(--muted)">
+            <span style="color:var(--cyan)">Best CV Score:</span> <strong style="color:var(--tx)">0.9715</strong><br>
+            <span style="color:var(--cyan)">Test Accuracy:</span> <strong style="color:var(--tx)">0.9793</strong><br>
+            <span style="color:var(--cyan)">Macro F1:</span> <strong style="color:var(--tx)">0.98</strong><br>
+            <span style="color:var(--cyan)">Classes perfectly classified:</span> <strong style="color:var(--green)">7 / 10 (F1=1.00)</strong>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.7rem;font-weight:600;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:1px;font-family:var(--disp)">Per-Class F1 Score</div>
+          <div id="xgb-bars"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PAGE: BEARING SCIENCE
+════════════════════════════════════════ -->
+<div class="page" id="page-bearing">
+  <div style="margin-bottom:1.5rem">
+    <h2 style="font-family:var(--disp);font-size:1.5rem;font-weight:700;letter-spacing:-1px;margin-bottom:.4rem">⚙️ Motor & Bearing Science</h2>
+    <p style="color:var(--muted);font-size:.82rem">From the steel race to the vibration impulse — the complete physics.</p>
+  </div>
+
+  <div class="science-layout">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">🔩 Bearing Structure — Click to Explore</div></div>
+      <div class="card-body">
+        <div class="bearing-diagram">
+          <svg width="320" height="320" viewBox="0 0 320 320" style="cursor:pointer" id="bearing-svg">
+            <!-- Outer race -->
+            <circle cx="160" cy="160" r="145" fill="none" stroke="#2A3F5F" stroke-width="28" id="svg-outer"/>
+            <circle cx="160" cy="160" r="145" fill="none" stroke="#1E2D45" stroke-width="1"/>
+            <!-- Inner race -->
+            <circle cx="160" cy="160" r="75" fill="none" stroke="#2A3F5F" stroke-width="22" id="svg-inner"/>
+            <circle cx="160" cy="160" r="75" fill="none" stroke="#1E2D45" stroke-width="1"/>
+            <!-- Shaft -->
+            <circle cx="160" cy="160" r="52" fill="#111827" stroke="#1E2D45" stroke-width="1.5" id="svg-shaft"/>
+            <circle cx="160" cy="160" r="46" fill="#0D1421"/>
+            <text x="160" y="165" text-anchor="middle" font-family="'Space Mono',monospace" font-size="9" fill="#64748B" font-weight="700">SHAFT</text>
+            <!-- Balls -->
+            <g id="svg-balls">
+              <circle cx="160" cy="15" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="253" cy="67" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="305" cy="160" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="253" cy="253" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="160" cy="305" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="67" cy="253" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="15" cy="160" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="67" cy="67" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+              <circle cx="209" cy="29" r="11" fill="#1A2235" stroke="#2A3F5F" stroke-width="2"/>
+            </g>
+            <!-- Cage circles -->
+            <circle cx="160" cy="160" r="116" fill="none" stroke="#1A2235" stroke-width="1.5" stroke-dasharray="4,6" id="svg-cage"/>
+            <!-- Labels -->
+            <line x1="160" y1="15" x2="200" y2="50" stroke="#64748B" stroke-width="1"/>
+            <text x="204" y="46" font-family="'Space Mono',monospace" font-size="8" fill="#64748B">BALL</text>
+            <line x1="280" y1="100" x2="310" y2="80" stroke="#64748B" stroke-width="1"/>
+            <text x="312" y="76" font-family="'Space Mono',monospace" font-size="8" fill="#64748B">OUTER RACE</text>
+            <line x1="200" y1="130" x2="240" y2="110" stroke="#64748B" stroke-width="1"/>
+            <text x="242" y="106" font-family="'Space Mono',monospace" font-size="8" fill="#64748B">INNER RACE</text>
+            <line x1="160" y1="116" x2="195" y2="220" stroke="#64748B" stroke-width="1"/>
+            <text x="197" y="216" font-family="'Space Mono',monospace" font-size="8" fill="#64748B">CAGE</text>
+          </svg>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center">
+            <button class="sig-btn active" style="--sc:#F59E0B" onclick="showBearingInfo('outer')">Outer Race</button>
+            <button class="sig-btn" style="--sc:#00D4FF" onclick="showBearingInfo('inner')">Inner Race</button>
+            <button class="sig-btn" style="--sc:#8B5CF6" onclick="showBearingInfo('ball')">Ball / Rolling Element</button>
+            <button class="sig-btn" style="--sc:#10B981" onclick="showBearingInfo('cage')">Cage</button>
+            <button class="sig-btn" style="--sc:#64748B" onclick="showBearingInfo('shaft')">Shaft</button>
+          </div>
+          <div class="info-panel" id="bearing-info-panel">
+            <div class="info-panel-title">Outer Race</div>
+            <div class="info-panel-body">The outer race is a hardened steel ring pressed into the bearing housing. It remains <strong>stationary</strong> during operation. Defects on the outer race produce highly periodic vibration impulses at a fixed rate (BPFO) because the defect location does not move relative to the load zone. This makes outer race faults among the easiest to detect.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-hd"><div class="card-title">⚠️ Bearing Failure Causes</div></div>
+        <div class="card-body" style="padding:1rem">
+          <div class="fail-grid">
+            <div class="fail-card" style="--fc:#EF4444"><div class="fail-icon">🔄</div><div class="fail-title">Rolling Fatigue</div><div class="fail-desc">Millions of load cycles create sub-surface micro-cracks → spalling. The dominant cause under normal conditions.</div></div>
+            <div class="fail-card" style="--fc:#F59E0B"><div class="fail-icon">💧</div><div class="fail-title">Inadequate Lubrication</div><div class="fail-desc">No lubricant film → metal-to-metal contact → heat + accelerated wear. Accounts for ~36% of premature failures.</div></div>
+            <div class="fail-card" style="--fc:#8B5CF6"><div class="fail-icon">📐</div><div class="fail-title">Misalignment</div><div class="fail-desc">Angular or parallel shaft misalignment concentrates stress on specific rolling elements, initiating localised fatigue.</div></div>
+            <div class="fail-card" style="--fc:#00D4FF"><div class="fail-icon">🌫️</div><div class="fail-title">Contamination</div><div class="fail-desc">Dust, metal particles, or moisture enter lubricant → abrasive scoring of raceway surfaces.</div></div>
+            <div class="fail-card" style="--fc:#10B981"><div class="fail-icon">🌊</div><div class="fail-title">Corrosion</div><div class="fail-desc">Moisture attacks hardened steel → pitting → stress raisers for fatigue crack initiation.</div></div>
+            <div class="fail-card" style="--fc:#F59E0B"><div class="fail-icon">⚡</div><div class="fail-title">Overload</div><div class="fail-desc">Forces exceeding design rating cause permanent brinelling — flat spots on raceways from ball indentation.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">📊 Characteristic Defect Frequencies at 1,772 RPM</div><span class="badge badge-cyan">CWRU Load 1HP</span></div>
+        <div class="card-body" style="padding:0">
+          <table class="freq-table">
+            <thead><tr><th>Symbol</th><th>Name</th><th>Value</th><th>Physical Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><span class="freq-mono">BPFO</span></td><td>Ball Pass Freq. Outer</td><td><span class="freq-mono" style="color:var(--amber)">107.4 Hz</span></td><td>Impacts/sec on outer race defect</td></tr>
+              <tr><td><span class="freq-mono">BPFI</span></td><td>Ball Pass Freq. Inner</td><td><span class="freq-mono" style="color:var(--violet)">162.2 Hz</span></td><td>Impacts/sec on inner race defect</td></tr>
+              <tr><td><span class="freq-mono">BSF</span></td><td>Ball Spin Frequency</td><td><span class="freq-mono" style="color:var(--cyan)">70.5 Hz</span></td><td>Ball rotation around own axis</td></tr>
+              <tr><td><span class="freq-mono">FTF</span></td><td>Fundamental Train Freq.</td><td><span class="freq-mono" style="color:var(--green)">11.9 Hz</span></td><td>Cage orbital frequency</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="card-hd"><div class="card-title">🔬 EDM Defect Introduction — Experimental Protocol</div><span class="badge badge-amber">Before measurement</span></div>
+    <div class="card-body">
+      <div class="edm-steps">
+        <div class="edm-step"><div class="edm-num">01</div><div class="edm-ic">⚡</div><div class="edm-lbl">EDM Machining</div><div class="edm-sub">Spark erosion creates pit of 0.007" / 0.014" / 0.021" on ball, IR, or OR</div></div>
+        <div class="edm-step"><div class="edm-num">02</div><div class="edm-ic">🔧</div><div class="edm-lbl">Install Bearing</div><div class="edm-sub">Damaged bearing fitted into 2HP induction motor test rig</div></div>
+        <div class="edm-step"><div class="edm-num">03</div><div class="edm-ic">⚙️</div><div class="edm-lbl">Run at 1 HP</div><div class="edm-sub">Motor runs at ~1,772 RPM under 1HP load from dynamometer</div></div>
+        <div class="edm-step"><div class="edm-num">04</div><div class="edm-ic">📡</div><div class="edm-lbl">Record 48 kHz</div><div class="edm-sub">DE + FE + BA accelerometers capture vibration for ~10 seconds</div></div>
+        <div class="edm-step"><div class="edm-num">05</div><div class="edm-ic">💾</div><div class="edm-lbl">Save .mat File</div><div class="edm-sub">MATLAB file with X097_DE_time, X097_FE_time variables inside</div></div>
+      </div>
+      <div style="margin-top:1rem;background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:.9rem">
+        <div style="font-size:.7rem;color:var(--muted);line-height:1.7">
+          <strong style="color:var(--amber)">Why EDM?</strong> Electro-Discharge Machining is a non-contact process that removes material via controlled electrical sparks in dielectric fluid. It creates defects of precisely controlled diameter and depth without introducing mechanical stresses in surrounding material — ensuring the defect geometry is reproducible across test specimens, which is essential for a benchmark dataset.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="card-title">📈 How Defects Generate Vibration — Fault-by-Fault</div></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+        <div style="background:var(--surf3);border:1px solid var(--amber)33;border-radius:var(--r);padding:1rem;border-top:2px solid var(--amber)">
+          <div style="font-family:var(--disp);font-size:.72rem;font-weight:700;color:var(--amber);margin-bottom:.6rem;letter-spacing:.5px">BALL FAULT</div>
+          <div style="font-size:.72rem;color:var(--muted);line-height:1.65">A pit on the ball surface contacts <em>both</em> raceways alternately as the ball orbits AND spins. This creates a double-frequency impact pattern modulated by the ball's orbital speed. Result: complex, harder-to-detect signature — especially at low severity.</div>
+        </div>
+        <div style="background:var(--surf3);border:1px solid var(--violet)33;border-radius:var(--r);padding:1rem;border-top:2px solid var(--violet)">
+          <div style="font-family:var(--disp);font-size:.72rem;font-weight:700;color:var(--violet);margin-bottom:.6rem;letter-spacing:.5px">INNER RACE FAULT</div>
+          <div style="font-size:.72rem;color:var(--muted);line-height:1.65">The inner race rotates with the shaft. A crack passes through the load zone once per revolution. Each ball-over-crack impact is amplitude-modulated by shaft speed — the defect enters and exits the maximum load zone continuously, varying impact magnitude. Detected at BPFI.</div>
+        </div>
+        <div style="background:var(--surf3);border:1px solid var(--blue)33;border-radius:var(--r);padding:1rem;border-top:2px solid var(--blue)">
+          <div style="font-family:var(--disp);font-size:.72rem;font-weight:700;color:var(--blue);margin-bottom:.6rem;letter-spacing:.5px">OUTER RACE FAULT</div>
+          <div style="font-size:.72rem;color:var(--muted);line-height:1.65">The outer race is stationary. Impacts occur every time a ball passes the fixed defect location. Since the defect does not move in or out of the load zone, there is no amplitude modulation — producing the cleanest, most periodic impulse sequence. Detected at BPFO.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PAGE: SIGNAL & SENSOR
+════════════════════════════════════════ -->
+<div class="page" id="page-signal">
+  <div style="margin-bottom:1.5rem">
+    <h2 style="font-family:var(--disp);font-size:1.5rem;font-weight:700;letter-spacing:-1px;margin-bottom:.4rem">📡 Signals & Sensors</h2>
+    <p style="color:var(--muted);font-size:.82rem">What the accelerometer actually measures — and what each waveform is telling you.</p>
+  </div>
+
+  <div class="sensor-layout">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">🌊 Vibration Waveform — Compare Conditions</div></div>
+      <div class="card-body">
+        <div class="sig-selector" id="sig-selector">
+          <button class="sig-btn active" style="--sc:#10B981" data-sig="normal" onclick="showSignal('normal',this)">✅ Normal</button>
+          <button class="sig-btn" style="--sc:#F59E0B" data-sig="ball_007" onclick="showSignal('ball_007',this)">⚠️ Ball 0.007"</button>
+          <button class="sig-btn" style="--sc:#EF4444" data-sig="ball_021" onclick="showSignal('ball_021',this)">🔴 Ball 0.021"</button>
+          <button class="sig-btn" style="--sc:#8B5CF6" data-sig="ir_007" onclick="showSignal('ir_007',this)">⚠️ IR 0.007"</button>
+          <button class="sig-btn" style="--sc:#6D28D9" data-sig="ir_021" onclick="showSignal('ir_021',this)">🔴 IR 0.021"</button>
+          <button class="sig-btn" style="--sc:#3B82F6" data-sig="or_007" onclick="showSignal('or_007',this)">⚠️ OR 0.007"</button>
+          <button class="sig-btn" style="--sc:#1D4ED8" data-sig="or_021" onclick="showSignal('or_021',this)">🔴 OR 0.021"</button>
+        </div>
+        <div style="height:200px"><canvas id="signalChart"></canvas></div>
+        <div id="sig-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-top:.85rem"></div>
+        <div id="sig-explain" style="margin-top:.75rem;font-size:.72rem;color:var(--muted);line-height:1.65;background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:.75rem"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-hd"><div class="card-title">📡 How the Accelerometer Works</div></div>
+        <div class="card-body">
+          <svg width="100%" height="160" viewBox="0 0 280 160" style="margin-bottom:.75rem">
+            <rect x="10" y="60" width="80" height="80" rx="6" fill="var(--surf3)" stroke="var(--brd2)" stroke-width="1.5"/>
+            <text x="50" y="95" text-anchor="middle" font-family="'Space Mono',monospace" font-size="8" fill="var(--cyan)" font-weight="700">MOTOR</text>
+            <text x="50" y="108" text-anchor="middle" font-family="'Space Mono',monospace" font-size="6" fill="var(--muted)">VIBRATING</text>
+            <!-- Vibration arrows -->
+            <g stroke="var(--amber)" stroke-width="1.5" fill="none">
+              <line x1="95" y1="90" x2="115" y2="90"/>
+              <line x1="95" y1="100" x2="115" y2="100"/>
+              <line x1="95" y1="110" x2="115" y2="110"/>
+              <polygon points="115,87 122,90 115,93" fill="var(--amber)"/>
+              <polygon points="115,97 122,100 115,103" fill="var(--amber)"/>
+              <polygon points="115,107 122,110 115,113" fill="var(--amber)"/>
+            </g>
+            <!-- Accelerometer block -->
+            <rect x="122" y="72" width="52" height="52" rx="4" fill="var(--surf2)" stroke="var(--cyan)" stroke-width="1.5"/>
+            <text x="148" y="96" text-anchor="middle" font-family="'Space Mono',monospace" font-size="6" fill="var(--cyan)" font-weight="700">PIEZO</text>
+            <text x="148" y="108" text-anchor="middle" font-family="'Space Mono',monospace" font-size="6" fill="var(--cyan)">CRYSTAL</text>
+            <!-- Signal path -->
+            <line x1="174" y1="98" x2="200" y2="98" stroke="var(--green)" stroke-width="1.5"/>
+            <!-- ADC -->
+            <rect x="200" y="80" width="40" height="36" rx="4" fill="var(--surf3)" stroke="var(--green)" stroke-width="1.5"/>
+            <text x="220" y="96" text-anchor="middle" font-family="'Space Mono',monospace" font-size="7" fill="var(--green)" font-weight="700">48kHz</text>
+            <text x="220" y="108" text-anchor="middle" font-family="'Space Mono',monospace" font-size="6" fill="var(--muted)">ADC</text>
+            <!-- Digital output -->
+            <line x1="240" y1="98" x2="265" y2="98" stroke="var(--cyan)" stroke-width="1.5"/>
+            <text x="268" y="101" font-family="'Space Mono',monospace" font-size="6" fill="var(--cyan)">g(t)</text>
+            <!-- Labels -->
+            <text x="148" y="140" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-size="8" fill="var(--muted)">Piezoelectric crystal deforms</text>
+            <text x="148" y="152" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-size="8" fill="var(--muted)">under acceleration → voltage</text>
+          </svg>
+          <div style="font-size:.72rem;color:var(--muted);line-height:1.65">A piezoelectric accelerometer contains a crystal that generates an electric charge proportional to the mechanical force applied to it. When the motor housing vibrates, the crystal deforms, producing a voltage proportional to acceleration. An ADC samples this at <strong style="color:var(--cyan)">48,000 times per second</strong>, producing 48,000 g-values per second — that's your raw signal.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="card-title">📍 3 Sensor Positions</div></div>
+        <div class="card-body" style="padding:.9rem">
+          <div class="accel-diagram">
+            <div class="accel-pos active" style="--ap-color:#00D4FF" id="ap-DE">
+              <div class="accel-dot"></div>
+              <div><div class="accel-name">DE — Drive End <span style="font-size:.6rem;color:var(--cyan);font-family:var(--disp)">← YOUR CSV</span></div>
+              <div class="accel-desc">Nearest to the motor shaft output. Maximum sensitivity to shaft-induced bearing faults. The <strong>X097_DE_time</strong> channel. This is the signal used to compute the 9 features in your Bearing.csv.</div></div>
+            </div>
+            <div class="accel-pos" style="--ap-color:#8B5CF6" id="ap-FE">
+              <div class="accel-dot" style="background:var(--violet);box-shadow:0 0 8px var(--violet)"></div>
+              <div><div class="accel-name">FE — Fan End</div>
+              <div class="accel-desc">Cooling fan side of motor. Captures transmitted vibration from the non-drive bearing. <strong>X097_FE_time</strong> in the .mat files.</div></div>
+            </div>
+            <div class="accel-pos" style="--ap-color:#10B981" id="ap-BA">
+              <div class="accel-dot" style="background:var(--green);box-shadow:0 0 8px var(--green)"></div>
+              <div><div class="accel-name">BA — Base</div>
+              <div class="accel-desc">Mounted on motor frame. Captures structure-borne vibration. <strong>X097_BA_time</strong>. Least direct but captures overall machine health.</div></div>
+            </div>
+          </div>
+          <div style="margin-top:.85rem;background:var(--cyanl);border:1px solid var(--cyan)40;border-radius:var(--r);padding:.7rem;font-size:.7rem;color:var(--cyan);line-height:1.6">
+            💡 <strong>Your downloaded dataset uses the Drive End (DE) channel.</strong> The feature_time_48k_2048_load_1.csv was computed from X###_DE_time variables extracted from each .mat file.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="card-title">🧮 The 9 Features — What They Actually Measure</div><span class="badge badge-cyan">2,048 pts → 9 numbers</span></div>
+    <div class="card-body">
+      <div class="feat-explain">
+        <div class="feat-ex-card" style="--fc:#EF4444"><div class="feat-ex-name">RMS</div><div class="feat-ex-formula">√(Σx²/N)</div><div class="feat-ex-desc">Overall vibration energy. Rises monotonically with fault severity. Good severity indicator but poor fault-type discriminator.</div></div>
+        <div class="feat-ex-card" style="--fc:#F59E0B"><div class="feat-ex-name">KURTOSIS</div><div class="feat-ex-formula">μ₄/σ⁴ − 3</div><div class="feat-ex-desc">Measures impulsiveness. Near 0 for Gaussian noise. Shoots up when bearing defects create sharp periodic impulses. The most sensitive early-fault indicator.</div></div>
+        <div class="feat-ex-card" style="--fc:#00D4FF"><div class="feat-ex-name">CREST FACTOR</div><div class="feat-ex-formula">x_peak / x_rms</div><div class="feat-ex-desc">Ratio of peak to RMS. Healthy: ~2.5–3.5. Faulted: >5. Detects isolated shock events even when overall energy is still low.</div></div>
+        <div class="feat-ex-card" style="--fc:#8B5CF6"><div class="feat-ex-name">SKEWNESS</div><div class="feat-ex-formula">μ₃/σ³</div><div class="feat-ex-desc">Signal asymmetry. Zero for symmetric noise. Inner race faults create directional loading that breaks symmetry — unique skewness signature per fault type.</div></div>
+        <div class="feat-ex-card" style="--fc:#10B981"><div class="feat-ex-name">STD DEV</div><div class="feat-ex-formula">√(Σ(x−μ)²/N)</div><div class="feat-ex-desc">Amplitude spread. Highly correlated with RMS (r≈1.0). Provides redundant but stable energy measurement.</div></div>
+        <div class="feat-ex-card" style="--fc:#3B82F6"><div class="feat-ex-name">FORM FACTOR</div><div class="feat-ex-formula">x_rms / |x_mean|</div><div class="feat-ex-desc">Waveform shape ratio. Sensitive to fault type — different bearing fault types produce different waveform morphologies.</div></div>
+        <div class="feat-ex-card" style="--fc:#F59E0B"><div class="feat-ex-name">MAX</div><div class="feat-ex-formula">max{x(n)}</div><div class="feat-ex-desc">Largest positive peak. Single-impulse events from severe faults produce extreme max values far above background noise.</div></div>
+        <div class="feat-ex-card" style="--fc:#F59E0B"><div class="feat-ex-name">MIN</div><div class="feat-ex-formula">min{x(n)}</div><div class="feat-ex-desc">Largest negative peak. Complements max — together they define the amplitude envelope of the vibration window.</div></div>
+        <div class="feat-ex-card" style="--fc:#64748B"><div class="feat-ex-name">MEAN</div><div class="feat-ex-formula">(1/N)Σx(n)</div><div class="feat-ex-desc">DC offset of signal. Should be ≈ 0 for pure AC vibration. Gravity components or mounting orientation can create non-zero means.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PAGE: DATASET EXPLORER
+════════════════════════════════════════ -->
+<div class="page" id="page-dataset">
+  <div style="margin-bottom:1.5rem">
+    <h2 style="font-family:var(--disp);font-size:1.5rem;font-weight:700;letter-spacing:-1px;margin-bottom:.4rem">🗂️ Dataset Explorer</h2>
+    <p style="color:var(--muted);font-size:.82rem">Every file decoded — from raw .mat to your Bearing.csv.</p>
+  </div>
+
+  <div class="ds-layout">
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-hd"><div class="card-title">📁 Your Downloaded Files</div><span class="badge badge-amber">126 MB total</span></div>
+        <div class="card-body" style="padding:.9rem">
+          <div class="file-tree">
+<span class="ft-folder">📁 cwru-bearing-datasets/</span><br>
+<span class="ft-indent"><span class="ft-folder">📁 raw/</span> <span class="ft-comment">← 10 original MATLAB recordings</span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">B007_1_123.mat</span> <span class="ft-comment">Ball 0.007" Load1 File#123</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">B014_1_190.mat</span> <span class="ft-comment">Ball 0.014" Load1 File#190</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">B021_1_227.mat</span> <span class="ft-comment">Ball 0.021" Load1 File#227</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">IR007_1_110.mat</span> <span class="ft-comment">Inner Race 0.007" Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">IR014_1_175.mat</span> <span class="ft-comment">Inner Race 0.014" Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">IR021_1_214.mat</span> <span class="ft-comment">Inner Race 0.021" Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">OR007_6_1_136.mat</span> <span class="ft-comment">Outer Race 0.007" pos6 Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">OR014_6_1_202.mat</span> <span class="ft-comment">Outer Race 0.014" pos6 Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">OR021_6_1_239.mat</span> <span class="ft-comment">Outer Race 0.021" pos6 Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-indent"><span class="ft-mat">Time_Normal_1_098.mat</span> <span class="ft-comment">Healthy bearing Load1</span></span></span><br>
+<span class="ft-indent"><span class="ft-npz">CWRU_48k_load_1_CNN_data.npz</span> <span class="ft-comment">Raw windows for CNN (37 MB)</span></span><br>
+<span class="ft-indent"><span class="ft-csv">feature_time_48k_2048_load_1.csv</span> <span class="ft-comment">← <strong>YOUR Bearing.csv</strong> (9 features)</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="card-title">🔄 From .mat → CSV — The Full Pipeline</div></div>
+        <div class="card-body">
+          <div class="pipeline-flow">
+            <div class="pipe-box"><div class="pipe-ic">💾</div><div class="pipe-lbl">.mat file</div><div class="pipe-sub">MATLAB binary</div></div>
+            <div class="pipe-box"><div class="pipe-ic">📊</div><div class="pipe-lbl">X###_DE_time</div><div class="pipe-sub">DE channel array</div></div>
+            <div class="pipe-box"><div class="pipe-ic">✂️</div><div class="pipe-lbl">2048-pt windows</div><div class="pipe-sub">Non-overlapping</div></div>
+            <div class="pipe-box"><div class="pipe-ic">🧮</div><div class="pipe-lbl">9 features</div><div class="pipe-sub">Per window</div></div>
+            <div class="pipe-box"><div class="pipe-ic">🏷️</div><div class="pipe-lbl">Label row</div><div class="pipe-sub">e.g. Ball_007_1</div></div>
+            <div class="pipe-box"><div class="pipe-ic">➕</div><div class="pipe-lbl">Concat all</div><div class="pipe-sub">10 files × 230</div></div>
+            <div class="pipe-box"><div class="pipe-ic">📄</div><div class="pipe-lbl">Bearing.csv</div><div class="pipe-sub">2,300 rows</div></div>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);line-height:1.7;margin-top:.75rem">
+            Each .mat file contains ~120,000 Drive End samples (≈2.5 seconds at 48 kHz). These are sliced into 230 non-overlapping windows of 2,048 points each. For every window, 9 statistical features are computed and one row is written to the CSV with the fault label from the filename.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-hd"><div class="card-title">🔍 Decode a Filename</div></div>
+        <div class="card-body">
+          <div style="margin-bottom:1rem">
+            <label style="font-size:.62rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.35rem;display:block">Select a file to decode</label>
+            <select id="decode-sel" class="sel-styled" style="width:100%;padding:.5rem .75rem;border:1px solid var(--brd);border-radius:var(--r);background:var(--surf3);color:var(--tx);font-size:.75rem;font-family:var(--sans)">
+              <option value="B007_1_123">B007_1_123.mat</option>
+              <option value="B014_1_190">B014_1_190.mat</option>
+              <option value="B021_1_227">B021_1_227.mat</option>
+              <option value="IR007_1_110">IR007_1_110.mat</option>
+              <option value="OR007_6_1_136">OR007_6_1_136.mat</option>
+              <option value="OR021_6_1_239">OR021_6_1_239.mat</option>
+              <option value="Time_Normal_1_098">Time_Normal_1_098.mat</option>
+            </select>
+          </div>
+          <div class="file-decode" id="file-decode-panel"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="card-title">📋 MATLAB Variable Names Inside</div></div>
+        <div class="card-body">
+          <div style="font-family:var(--mono);font-size:.7rem;background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:1rem;line-height:2">
+            <span style="color:var(--muted)">% Variables inside e.g. B014_1_190.mat:</span><br>
+            <span style="color:var(--cyan)">X190_DE_time</span> <span style="color:var(--muted)">← Drive End channel (used for CSV)</span><br>
+            <span style="color:var(--violet)">X190_FE_time</span> <span style="color:var(--muted)">← Fan End channel</span><br>
+            <span style="color:var(--green)">X190_BA_time</span> <span style="color:var(--muted)">← Base channel</span><br>
+            <span style="color:var(--amber)">X190RPM</span> <span style="color:var(--muted)">← Recorded shaft speed (~1772)</span><br>
+            <br>
+            <span style="color:var(--muted)">% Load in Python:</span><br>
+            <span style="color:var(--green)">import scipy.io as sio</span><br>
+            <span style="color:var(--tx)">mat = sio.loadmat(<span style="color:var(--amber)">'B014_1_190.mat'</span>)</span><br>
+            <span style="color:var(--tx)">signal = mat[<span style="color:var(--amber)">'X190_DE_time'</span>].flatten()</span>
+          </div>
+          <div style="margin-top:.75rem;font-size:.7rem;color:var(--muted);line-height:1.65">
+            The numeric prefix in the variable name (190 here) matches the file identifier at the end of the filename. Always verify by inspecting the actual key names with <code style="background:var(--surf3);padding:1px 5px;border-radius:3px;font-family:var(--mono)">print(mat.keys())</code> before accessing.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="card-title">📊 What You Have — Complete Data Map</div></div>
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.72rem">
+        <thead><tr style="background:var(--surf3);border-bottom:1px solid var(--brd)">
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">File</th>
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">Fault</th>
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">Defect Size</th>
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">Load</th>
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">CSV Label</th>
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">Windows</th>
+          <th style="padding:.55rem .85rem;text-align:left;font-family:var(--disp);font-size:.6rem;letter-spacing:.5px;color:var(--muted);font-weight:400;text-transform:uppercase">Channel Used</th>
+        </tr></thead>
+        <tbody id="data-map-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PAGE: 3D MONITOR
+════════════════════════════════════════ -->
+<div class="page" id="page-monitor">
+  <div style="margin-bottom:1.25rem">
+    <h2 style="font-family:var(--disp);font-size:1.5rem;font-weight:700;letter-spacing:-1px;margin-bottom:.3rem">🔩 Live Bearing Monitor</h2>
+    <p style="color:var(--muted);font-size:.78rem">Load a fault preset or adjust features manually. Watch the bearing react in real-time.</p>
+  </div>
+  <div class="monitor-layout">
+    <div>
+      <div class="monitor-3d-wrap">
+        <canvas class="monitor-3d-canvas" id="bearing3d"></canvas>
+        <div class="monitor-3d-overlay">
+          <div class="monitor-badge-wrap">
+            <span class="monitor-health" id="m-health" style="background:var(--greenl);color:var(--green);border-color:var(--green)">● HEALTHY</span>
+            <span id="m-conf" class="monitor-health" style="background:var(--surf2);color:var(--muted);border-color:var(--brd)">97.3%</span>
+          </div>
+          <div style="font-family:var(--disp);font-size:.6rem;color:var(--muted)">48 kHz · DE Channel</div>
+        </div>
+        <div class="monitor-controls">
+          <button class="btn btn-sm btn-ghost" id="btn-3d-rotate">⟳ Rotate</button>
+          <button class="btn btn-sm btn-ghost" id="btn-3d-explode">💥 Explode view</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="predict-ctrl" style="margin-bottom:.85rem">
+        <div class="predict-ctrl-title">⚡ LOAD FAULT PRESET</div>
+        <div class="presets-mini" id="monitor-presets"></div>
+        <div class="predict-ctrl-title" style="margin-top:.85rem">🎛️ ADJUST FEATURES</div>
+        <div class="feat-sl-rows" id="monitor-sliders"></div>
+        <button class="btn btn-cyan" style="width:100%;justify-content:center" id="btn-monitor-predict">🔮 Classify</button>
+      </div>
+      <div class="result-display" style="margin-bottom:.85rem">
+        <div class="rd-icon" id="m-icon">🔮</div>
+        <div class="rd-cls" id="m-cls" style="color:var(--muted)">Run classification</div>
+        <div class="rd-conf">Confidence: <span id="m-conf2" style="color:var(--muted)">—</span></div>
+        <div class="mini-sev">
+          <div class="mini-sev-dot" id="msv1"></div>
+          <div class="mini-sev-dot" id="msv2"></div>
+          <div class="mini-sev-dot" id="msv3"></div>
+          <span id="msv-txt" style="font-size:.68rem;color:var(--muted);margin-left:.25rem">Severity</span>
+        </div>
+      </div>
+      <div class="alert-panel" id="alert-panel">
+        <div style="font-family:var(--disp);font-size:.62rem;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:.25rem">Real-time Alerts</div>
+        <div id="alert-placeholder" style="background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);padding:1.2rem;text-align:center;font-size:.72rem;color:var(--muted)">
+          <div style="font-size:1.4rem;margin-bottom:.4rem">✅</div>
+          No alerts — bearing is healthy
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PAGE: DASHBOARD
+════════════════════════════════════════ -->
+<div class="page" id="page-dashboard">
+  <div style="margin-bottom:1.25rem">
+    <h2 style="font-family:var(--disp);font-size:1.5rem;font-weight:700;letter-spacing:-1px;margin-bottom:.3rem">🏠 Dashboard</h2>
+    <p style="color:var(--muted);font-size:.78rem">2,300 samples · 10 classes · 9 features — all from your Bearing.csv.</p>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi" style="--kc:var(--cyan)"><span class="kpi-ic">📊</span><div class="kpi-lbl">Total Samples</div><div class="kpi-val">2,300</div><div class="kpi-sub">10 balanced classes</div></div>
+    <div class="kpi" style="--kc:var(--violet)"><span class="kpi-ic">🔧</span><div class="kpi-lbl">Fault Classes</div><div class="kpi-val">10</div><div class="kpi-sub">3 types + Normal</div></div>
+    <div class="kpi" style="--kc:var(--green)"><span class="kpi-ic">🎯</span><div class="kpi-lbl">Best Accuracy</div><div class="kpi-val">~98%</div><div class="kpi-sub">XGBoost / RF</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><span class="kpi-ic">📈</span><div class="kpi-lbl">Signal Features</div><div class="kpi-val">9</div><div class="kpi-sub">Time-domain</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="card"><div class="card-hd"><div class="card-title">📈 Feature Importance (Variance Ratio)</div><span class="badge badge-cyan">From data</span></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="impChart"></canvas></div></div></div>
+    <div class="card"><div class="card-hd"><div class="card-title">🍩 Class Distribution</div><span class="badge badge-green">Balanced</span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:.5rem">
+        <div class="chart-sq"><canvas id="donutChart"></canvas></div>
+        <div style="font-size:.62rem;color:var(--muted);text-align:center">230 samples per class · perfectly balanced</div>
+      </div></div>
+  </div>
+  <div class="bottom-grid">
+    <div class="card"><div class="card-hd"><div class="card-title">🔧 All Fault Classes</div></div>
+      <div class="card-body"><div class="cls-list" id="cls-list"></div></div></div>
+    <div class="right-col">
+      <div class="card"><div class="card-hd"><div class="card-title">🌡️ Correlation Heatmap</div></div>
+        <div class="card-body" style="padding:.75rem;overflow-x:auto"><div id="corr-hm"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PAGE: AI ADVISER (preserved)
+════════════════════════════════════════ -->
+<div class="page" id="page-adviser" style="padding-bottom:0">
+  <div class="adv-layout">
+    <div class="ctx-panel">
+      <div class="ctx-hd"><div class="ctx-hd-title">🎛️ Sensor Context</div><div class="ctx-hd-sub">Set values → Analyse</div></div>
+      <div class="ctx-body">
+        <div><div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.4rem">Load Preset</div><div class="adv-ps" id="adv-ps"></div></div>
+        <div class="qi-rows" id="qi-rows"></div>
+        <button class="btn-analyse" id="btn-analyse">🔍 Analyse Bearing State</button>
+        <div class="ctx-result"><div class="ctx-rlbl">Detected State</div><div id="ctx-rd"><div style="font-size:.68rem;color:var(--muted);text-align:center;padding:.5rem">No analysis yet</div></div></div>
+      </div>
+    </div>
+    <div class="chat-panel">
+      <div class="chat-hd">
+        <div class="adv-av">🤖</div>
+        <div><div class="adv-nm">VibrationLab Expert</div><div class="adv-st"><span style="width:7px;height:7px;background:var(--green);border-radius:50%"></span>Online · Rule-based + ML</div></div>
+        <button class="btn btn-sm btn-ghost" style="margin-left:auto" id="btn-clr">🧹 Clear</button>
+      </div>
+      <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chat-input-area">
+        <div class="qqs" id="qqs"></div>
+        <div class="chat-row">
+          <input type="text" class="chat-inp" id="chat-inp" placeholder="Ask about root cause, replacement, safety…">
+          <button class="btn-send" id="btn-send">↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+<div id="toast"></div>
+
+<script>
+// ═══════════ DATA ═══════════
+const DB = DB_PLACEHOLDER;
+const WV = WV_PLACEHOLDER;
+
+const META = {
+  Normal_1:   {label:'Normal',              type:'normal', sev:0, color:'#10B981', icon:'✅'},
+  Ball_007_1: {label:'Ball — 0.007"',       type:'ball',   sev:1, color:'#F59E0B', icon:'⚠️'},
+  Ball_014_1: {label:'Ball — 0.014"',       type:'ball',   sev:2, color:'#F97316', icon:'🔶'},
+  Ball_021_1: {label:'Ball — 0.021"',       type:'ball',   sev:3, color:'#EF4444', icon:'🔴'},
+  IR_007_1:   {label:'Inner Race — 0.007"', type:'inner',  sev:1, color:'#8B5CF6', icon:'⚠️'},
+  IR_014_1:   {label:'Inner Race — 0.014"', type:'inner',  sev:2, color:'#7C3AED', icon:'🔶'},
+  IR_021_1:   {label:'Inner Race — 0.021"', type:'inner',  sev:3, color:'#6D28D9', icon:'🔴'},
+  OR_007_6_1: {label:'Outer Race — 0.007"', type:'outer',  sev:1, color:'#3B82F6', icon:'⚠️'},
+  OR_014_6_1: {label:'Outer Race — 0.014"', type:'outer',  sev:2, color:'#2563EB', icon:'🔶'},
+  OR_021_6_1: {label:'Outer Race — 0.021"', type:'outer',  sev:3, color:'#1D4ED8', icon:'🔴'},
+};
+const FEATS = DB.features;
+const CLASSES = DB.classes;
+const SEV_LABELS = {0:'Healthy',1:'Low',2:'Moderate',3:'Critical'};
+const SEV_COLORS = {0:'#10B981',1:'#F59E0B',2:'#F97316',3:'#EF4444'};
+const FEAT_INFO = {
+  max:{desc:'Max amplitude',min:-6.5,max:6.9}, min:{desc:'Min amplitude',min:-6.5,max:0.5},
+  mean:{desc:'Mean value',min:-0.01,max:0.04}, sd:{desc:'Std deviation',min:0,max:1.3},
+  rms:{desc:'Root Mean Square',min:0,max:1.3}, skewness:{desc:'Skewness',min:-1.2,max:1.1},
+  kurtosis:{desc:'Kurtosis',min:-1,max:31}, crest:{desc:'Crest factor',min:2,max:9},
+  form:{desc:'Form factor',min:3,max:320},
+};
+const TOPBAR = {
+  intro:    {title:'VIBRATIONLAB',crumb:'Introduction'},
+  bearing:  {title:'MOTOR & BEARING SCIENCE',crumb:'Physics → Failure'},
+  signal:   {title:'SIGNALS & SENSORS',crumb:'Waveforms → Features'},
+  dataset:  {title:'DATASET EXPLORER',crumb:'Files → CSV'},
+  monitor:  {title:'LIVE 3D MONITOR',crumb:'Real-time Diagnostics'},
+  dashboard:{title:'DASHBOARD',crumb:'Statistics & Analysis'},
+  adviser:  {title:'AI ADVISER',crumb:'Maintenance Recommendations'},
+};
+
+// ═══════════ NAV ═══════════
+let dashInited=false, advInited=false, monitorInited=false, datasetInited=false;
+function goto(pg){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-it[data-page]').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+pg).classList.add('active');
+  document.querySelector(`.nav-it[data-page="${pg}"]`)?.classList.add('active');
+  const m=TOPBAR[pg]||{};
+  document.getElementById('tb-title').textContent=m.title||pg.toUpperCase();
+  document.getElementById('tb-crumb').textContent=m.crumb||pg;
+  if(pg==='dashboard'&&!dashInited){dashInited=true;initDash();}
+  if(pg==='adviser'&&!advInited){advInited=true;initAdv();}
+  if(pg==='monitor'&&!monitorInited){monitorInited=true;initMonitor();}
+  if(pg==='dataset'&&!datasetInited){datasetInited=true;initDataset();}
+}
+document.querySelectorAll('.nav-it[data-page]').forEach(n=>n.addEventListener('click',()=>goto(n.dataset.page)));
+
+// ═══════════ TOAST ═══════════
+let toastTm;
+function toast(msg,type='info',dur=2500){
+  const el=document.getElementById('toast');
+  const s={info:'background:#0D1421;color:#00D4FF;border:1px solid #00D4FF40',
+    success:'background:#0D1421;color:#10B981;border:1px solid #10B98140',
+    warning:'background:#0D1421;color:#F59E0B;border:1px solid #F59E0B40',
+    error:'background:#0D1421;color:#EF4444;border:1px solid #EF444440'};
+  el.style.cssText+=';'+s[type];
+  el.innerHTML=`<span>${{info:'ℹ️',success:'✅',warning:'⚠️',error:'❌'}[type]}</span> ${msg}`;
+  requestAnimationFrame(()=>{el.style.transform='translateY(0)';el.style.opacity='1';});
+  clearTimeout(toastTm);
+  toastTm=setTimeout(()=>{el.style.transform='translateY(80px)';el.style.opacity='0';},dur);
+}
+
+// ═══════════ CLASSIFIER ═══════════
+function classify(feats){
+  const scores={};
+  for(const[cls,st] of Object.entries(DB.class_stats)){
+    let d=0;
+    for(let i=0;i<feats.length;i++){const z=(feats[i]-st.mean[i])/(st.std[i]+1e-9);d+=z*z;}
+    scores[cls]=d;
+  }
+  const total=Object.values(scores).reduce((s,v)=>s+Math.exp(-v/10),0);
+  const probs={};
+  for(const[c,sc] of Object.entries(scores)) probs[c]=Math.exp(-sc/10)/total;
+  const best=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0][0];
+  return{predicted:best,probs};
+}
+
+// ═══════════ INTRO PAGE ═══════════
+function initIntro(){
+  // XGBoost bars
+  const xgbF1=[0.96,0.99,0.92,1.00,1.00,1.00,1.00,1.00,0.93,1.00];
+  const xgbLabels=['Ball007','Ball014','Ball021','IR007','IR014','IR021','Normal','OR007','OR014','OR021'];
+  const colors=['#F59E0B','#F97316','#EF4444','#8B5CF6','#7C3AED','#6D28D9','#10B981','#3B82F6','#2563EB','#1D4ED8'];
+  const bars = document.getElementById('xgb-bars');
+  if(bars) bars.innerHTML = xgbF1.map((v,i)=>`
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem">
+      <span style="font-size:.6rem;font-family:var(--mono);color:var(--muted);width:52px;text-align:right">${xgbLabels[i]}</span>
+      <div style="flex:1;height:6px;background:var(--surf3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${v*100}%;background:${colors[i]};border-radius:3px;transition:width .8s ease"></div>
+      </div>
+      <span style="font-size:.6rem;font-family:var(--mono);color:${v===1?'var(--green)':'var(--tx)'};width:30px">${(v*100).toFixed(0)}%</span>
+    </div>`).join('');
+}
+
+// ═══════════ BEARING SCIENCE PAGE ═══════════
+const BEARING_INFO = {
+  outer:{title:'Outer Race',color:'#F59E0B',body:'The outer race is a hardened steel ring pressed into the bearing housing. It remains <strong>stationary</strong> during operation. Defects on the outer race produce highly periodic vibration impulses at a fixed rate (BPFO = 107.4 Hz at 1,772 RPM) because the defect location does not move relative to the load zone. This makes outer race faults among the easiest to detect and classify.'},
+  inner:{title:'Inner Race',color:'#8B5CF6',body:'The inner race rotates with the motor shaft. A defect on its surface passes through the maximum load zone repeatedly. Each time a ball rolls over the crack, an impulse occurs — amplitude-modulated by the shaft rotation frequency because the defect moves in and out of the load zone. Detected at BPFI = 162.2 Hz. The amplitude modulation makes inner race faults slightly harder to isolate than outer race faults.'},
+  ball:{title:'Ball (Rolling Element)',color:'#00D4FF',body:'Defective balls contact both inner and outer raceways alternately as they orbit and spin. The impact pattern is modulated by both the ball spin frequency (BSF = 70.5 Hz) and its orbital frequency (FTF = 11.9 Hz). This dual modulation creates a complex, irregular impulse signature — the hardest fault type to detect at low severity levels.'},
+  cage:{title:'Cage (Retainer)',color:'#10B981',body:'The cage holds rolling elements at equal angular spacing, preventing collisions. It rotates at approximately FTF = 11.9 Hz. Cage faults are relatively rare and not included in this dataset — the CWRU dataset focuses on ball, inner race, and outer race defects only. A damaged cage would cause irregular ball spacing and erratic vibration patterns.'},
+  shaft:{title:'Motor Shaft',color:'#64748B',body:'The shaft is the rotating element of the motor rotor. It is pressed into the inner race bore, so the inner race always rotates at shaft speed (~1,772 RPM = 29.5 Hz at 1HP load). Shaft speed determines all bearing defect frequencies through the kinematic relationships BPFO, BPFI, BSF, and FTF.'},
+};
+function showBearingInfo(part){
+  const info = BEARING_INFO[part];
+  if(!info) return;
+  const panel = document.getElementById('bearing-info-panel');
+  panel.querySelector('.info-panel-title').textContent = info.title;
+  panel.querySelector('.info-panel-title').style.color = info.color;
+  panel.querySelector('.info-panel-body').innerHTML = info.body;
+  document.querySelectorAll('.sig-btn').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('onclick').includes("'"+part+"'"));
+  });
+}
+
+// ═══════════ SIGNAL PAGE ═══════════
+let sigChartInst=null;
+const SIG_INFO = {
+  normal:{label:'✅ Normal Bearing',color:'#10B981',
+    explain:'<strong style="color:#10B981">Healthy bearing:</strong> Low-amplitude broadband noise from lubricant film dynamics. No periodic impulsive content. RMS ≈ 0.065g. Kurtosis ≈ 0 (Gaussian distribution). Crest factor ≈ 3.1.'},
+  ball_007:{label:'⚠️ Ball 0.007" (Low)',color:'#F59E0B',
+    explain:'<strong style="color:#F59E0B">Ball defect — low severity:</strong> Very subtle signal change. Occasional small impulses when the defective surface contacts the races. Kurtosis slightly elevated. Difficult to distinguish from normal at this early stage — demonstrates why ML is needed.'},
+  ball_021:{label:'🔴 Ball 0.021" (Critical)',color:'#EF4444',
+    explain:'<strong style="color:#EF4444">Ball defect — critical:</strong> Significant amplitude increase. Irregular impulse pattern due to dual contact (inner + outer race) at BSF. RMS > 2×normal. Kurtosis elevated. Crest factor > 5.'},
+  ir_007:{label:'⚠️ Inner Race 0.007"',color:'#8B5CF6',
+    explain:'<strong style="color:#8B5CF6">Inner race — low:</strong> Periodic impulses at BPFI (162 Hz). Amplitude modulated by shaft rotation — notice the envelope variation. Slightly asymmetric (non-zero skewness) due to directional loading pattern.'},
+  ir_021:{label:'🔴 Inner Race 0.021"',color:'#6D28D9',
+    explain:'<strong style="color:#6D28D9">Inner race — critical:</strong> Strong periodic impulses clearly visible in the waveform. High RMS (>0.6g). Significant kurtosis. The modulation envelope from shaft rotation is clearly visible as amplitude variation.'},
+  or_007:{label:'⚠️ Outer Race 0.007"',color:'#3B82F6',
+    explain:'<strong style="color:#3B82F6">Outer race — low:</strong> Regular impulses at BPFO (107 Hz). No amplitude modulation (outer race is stationary). Cleaner than inner race at same severity — the periodicity is more obvious even at low severity.'},
+  or_021:{label:'🔴 Outer Race 0.021"',color:'#1D4ED8',
+    explain:'<strong style="color:#1D4ED8">Outer race — critical:</strong> Very high amplitude impulses (OR faults at .021" produce largest amplitudes in dataset — RMS > 1g for OR007, > 0.6g here). The vibration energy is massive. Equipment failure imminent without intervention.'},
+};
+
+function showSignal(key, btn){
+  document.querySelectorAll('.sig-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const wv = WV[key];
+  const info = SIG_INFO[key];
+  if(!wv||!info) return;
+
+  // compute quick stats
+  const n=wv.length, sum=wv.reduce((a,v)=>a+v,0), mean=sum/n;
+  const sq=wv.reduce((a,v)=>a+(v-mean)**2,0), sd=Math.sqrt(sq/n);
+  const rms=Math.sqrt(wv.reduce((a,v)=>a+v*v,0)/n);
+  const mx=Math.max(...wv), mn=Math.min(...wv);
+  const kurt=wv.reduce((a,v)=>a+((v-mean)/sd)**4,0)/n - 3;
+  const crest=Math.max(Math.abs(mx),Math.abs(mn))/rms;
+
+  const statKeys=[['RMS',rms.toFixed(4),'g'],['Kurtosis',kurt.toFixed(3),''],['Crest',crest.toFixed(2),''],['Max',mx.toFixed(4),'g']];
+  document.getElementById('sig-stats').innerHTML=statKeys.map(([k,v,u])=>`
+    <div style="background:var(--surf3);border:1px solid var(--brd);border-radius:var(--r);padding:.6rem;text-align:center">
+      <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.2rem;font-family:var(--disp)">${k}</div>
+      <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:${info.color}">${v}</div>
+      <div style="font-size:.55rem;color:var(--muted)">${u}</div>
+    </div>`).join('');
+  document.getElementById('sig-explain').innerHTML=info.explain;
+
+  if(sigChartInst) sigChartInst.destroy();
+  sigChartInst=new Chart(document.getElementById('signalChart'),{
+    type:'line',
+    data:{labels:wv.map((_,i)=>i),datasets:[{data:wv,borderColor:info.color,backgroundColor:info.color+'11',
+      borderWidth:1.5,fill:true,tension:0.2,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{display:false},y:{grid:{color:'#1E2D4555'},ticks:{color:'#64748B',font:{size:9}},border:{display:false}}}}
+  });
+}
+
+// ═══════════ DATASET PAGE ═══════════
+const FILE_DECODE = {
+  'B007_1_123':{parts:[{chunk:'B',bg:'#F59E0B22',color:'#F59E0B',meaning:'Ball defect'},{chunk:'007',bg:'#00D4FF22',color:'#00D4FF',meaning:'0.007 inches diameter'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load condition: 1 HP (1,772 RPM)'},{chunk:'123',bg:'#8B5CF622',color:'#8B5CF6',meaning:'CWRU file identifier #123'}],channel:'X123_DE_time',label:'Ball_007_1',windows:230},
+  'B014_1_190':{parts:[{chunk:'B',bg:'#F59E0B22',color:'#F59E0B',meaning:'Ball defect'},{chunk:'014',bg:'#00D4FF22',color:'#00D4FF',meaning:'0.014 inches diameter'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load: 1 HP'},{chunk:'190',bg:'#8B5CF622',color:'#8B5CF6',meaning:'File #190'}],channel:'X190_DE_time',label:'Ball_014_1',windows:230},
+  'B021_1_227':{parts:[{chunk:'B',bg:'#EF444422',color:'#EF4444',meaning:'Ball defect'},{chunk:'021',bg:'#EF444422',color:'#EF4444',meaning:'0.021 inches — highest severity'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load: 1 HP'},{chunk:'227',bg:'#8B5CF622',color:'#8B5CF6',meaning:'File #227'}],channel:'X227_DE_time',label:'Ball_021_1',windows:230},
+  'IR007_1_110':{parts:[{chunk:'IR',bg:'#8B5CF622',color:'#8B5CF6',meaning:'Inner Race defect'},{chunk:'007',bg:'#00D4FF22',color:'#00D4FF',meaning:'0.007 inches'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load: 1 HP'},{chunk:'110',bg:'#64748B22',color:'#64748B',meaning:'File #110'}],channel:'X110_DE_time',label:'IR_007_1',windows:230},
+  'OR007_6_1_136':{parts:[{chunk:'OR',bg:'#3B82F622',color:'#3B82F6',meaning:'Outer Race defect'},{chunk:'007',bg:'#00D4FF22',color:'#00D4FF',meaning:'0.007 inches'},{chunk:'_6_',bg:'#F59E0B22',color:'#F59E0B',meaning:'Defect at 6 o\'clock (load zone)'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load: 1 HP'},{chunk:'136',bg:'#64748B22',color:'#64748B',meaning:'File #136'}],channel:'X136_DE_time',label:'OR_007_6_1',windows:230},
+  'OR021_6_1_239':{parts:[{chunk:'OR',bg:'#3B82F622',color:'#3B82F6',meaning:'Outer Race defect'},{chunk:'021',bg:'#EF444422',color:'#EF4444',meaning:'0.021 inches — critical'},{chunk:'_6_',bg:'#F59E0B22',color:'#F59E0B',meaning:'Defect at 6 o\'clock'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load: 1 HP'},{chunk:'239',bg:'#64748B22',color:'#64748B',meaning:'File #239'}],channel:'X239_DE_time',label:'OR_021_6_1',windows:230},
+  'Time_Normal_1_098':{parts:[{chunk:'Time_Normal',bg:'#10B98122',color:'#10B981',meaning:'Healthy bearing — no defect'},{chunk:'_1_',bg:'#10B98122',color:'#10B981',meaning:'Load: 1 HP'},{chunk:'098',bg:'#64748B22',color:'#64748B',meaning:'File #098'}],channel:'X098_DE_time',label:'Normal_1',windows:230},
+};
+function decodeFile(key){
+  const f=FILE_DECODE[key]; if(!f) return;
+  const panel=document.getElementById('file-decode-panel');
+  panel.innerHTML=`
+    <div class="fd-name">${key}.mat</div>
+    ${f.parts.map(p=>`<div class="fd-part">
+      <span class="fd-chunk" style="background:${p.bg};color:${p.color}">${p.chunk}</span>
+      <span class="fd-arrow">→</span>
+      <span class="fd-meaning"><strong>${p.meaning}</strong></span>
+    </div>`).join('')}
+    <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--brd)">
+      <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.35rem;font-family:var(--disp)">Inside the file</div>
+      <div style="font-family:var(--mono);font-size:.68rem;color:var(--cyan)">${f.channel}</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">→ CSV label: <strong style="color:var(--tx)">${f.label}</strong> · ${f.windows} windows</div>
+    </div>`;
+}
+function initDataset(){
+  decodeFile('B007_1_123');
+  document.getElementById('decode-sel').addEventListener('change',e=>decodeFile(e.target.value));
+  // Data map table
+  const rows=[
+    ['Time_Normal_1_098.mat','None','—','1 HP','Normal_1',230,'X098_DE_time'],
+    ['B007_1_123.mat','Ball','0.007"','1 HP','Ball_007_1',230,'X123_DE_time'],
+    ['B014_1_190.mat','Ball','0.014"','1 HP','Ball_014_1',230,'X190_DE_time'],
+    ['B021_1_227.mat','Ball','0.021"','1 HP','Ball_021_1',230,'X227_DE_time'],
+    ['IR007_1_110.mat','Inner Race','0.007"','1 HP','IR_007_1',230,'X110_DE_time'],
+    ['IR014_1_175.mat','Inner Race','0.014"','1 HP','IR_014_1',230,'X175_DE_time'],
+    ['IR021_1_214.mat','Inner Race','0.021"','1 HP','IR_021_1',230,'X214_DE_time'],
+    ['OR007_6_1_136.mat','Outer Race','0.007"','1 HP','OR_007_6_1',230,'X136_DE_time'],
+    ['OR014_6_1_202.mat','Outer Race','0.014"','1 HP','OR_014_6_1',230,'X202_DE_time'],
+    ['OR021_6_1_239.mat','Outer Race','0.021"','1 HP','OR_021_6_1',230,'X239_DE_time'],
+  ];
+  const faultColor={'None':'#10B981','Ball':'#F59E0B','Inner Race':'#8B5CF6','Outer Race':'#3B82F6'};
+  document.getElementById('data-map-table').innerHTML=rows.map((r,i)=>`<tr style="background:${i%2?'var(--surf2)':'transparent'}">
+    <td style="padding:.5rem .85rem;font-family:var(--mono);font-size:.68rem;color:var(--cyan)">${r[0]}</td>
+    <td style="padding:.5rem .85rem;font-size:.7rem;color:${faultColor[r[1]]||'var(--tx)'};font-weight:600">${r[1]}</td>
+    <td style="padding:.5rem .85rem;font-family:var(--mono);font-size:.68rem;color:var(--amber)">${r[2]}</td>
+    <td style="padding:.5rem .85rem;font-size:.7rem;color:var(--muted)">${r[3]}</td>
+    <td style="padding:.5rem .85rem;font-family:var(--mono);font-size:.66rem;color:var(--violet)">${r[4]}</td>
+    <td style="padding:.5rem .85rem;font-family:var(--mono);font-size:.68rem;color:var(--green);text-align:center">${r[5]}</td>
+    <td style="padding:.5rem .85rem;font-family:var(--mono);font-size:.65rem;color:var(--muted)">${r[6]}</td>
+  </tr>`).join('');
+}
+
+// ═══════════ 3D MONITOR ═══════════
+let monVals=[...DB.presets.Normal_1], monChartLast=null, rotAngle=0, animId=null, exploded=false;
+
+function initMonitor(){
+  const presets=document.getElementById('monitor-presets');
+  presets.innerHTML=CLASSES.map(cls=>{const m=META[cls];
+    return `<button class="pm-btn" style="color:${m.color};border-color:${m.color}" onclick="loadMonPreset('${cls}')">${m.icon} ${m.label.split('—')[0].trim()}</button>`;
+  }).join('');
+
+  document.getElementById('monitor-sliders').innerHTML=FEATS.map((f,i)=>{
+    const info=FEAT_INFO[f];
+    const step=['mean','sd','rms'].includes(f)?0.0001:['skewness','kurtosis'].includes(f)?0.01:0.001;
+    return `<div class="fsl-row">
+      <label class="fsl-lbl">${f}</label>
+      <input type="range" id="msl-${f}" min="${info.min}" max="${info.max}" step="${step}" value="${monVals[i]}" oninput="syncMon('${f}',this.value,false)">
+      <input type="number" class="fsl-num" id="mnum-${f}" min="${info.min}" max="${info.max}" step="${step}" value="${monVals[i]}" oninput="syncMon('${f}',this.value,true)">
+    </div>`;
+  }).join('');
+
+  document.getElementById('btn-monitor-predict').addEventListener('click',runMonPredict);
+  document.getElementById('btn-3d-rotate').addEventListener('click',()=>{
+    if(animId){cancelAnimationFrame(animId);animId=null;document.getElementById('btn-3d-rotate').textContent='⟳ Rotate';}
+    else{startRotation();document.getElementById('btn-3d-rotate').textContent='⏹ Stop';}
+  });
+  document.getElementById('btn-3d-explode').addEventListener('click',()=>{
+    exploded=!exploded;
+    document.getElementById('btn-3d-explode').textContent=exploded?'🔗 Collapse':'💥 Explode view';
+    drawBearing3D();
+  });
+
+  drawBearing3D();
+}
+
+function syncMon(f,v,fromNum){
+  const idx=FEATS.indexOf(f); monVals[idx]=parseFloat(v)||0;
+  const sl=document.getElementById('msl-'+f),num=document.getElementById('mnum-'+f);
+  if(fromNum) sl.value=v; else num.value=parseFloat(v).toFixed(f==='mean'?5:3);
+}
+function loadMonPreset(cls){
+  monVals=[...DB.presets[cls]];
+  FEATS.forEach((f,i)=>{syncMon(f,monVals[i],true);syncMon(f,monVals[i],false);});
+  runMonPredict(); toast(`Loaded: ${META[cls].label}`,'info',1500);
+}
+
+function runMonPredict(){
+  const{predicted,probs}=classify(monVals);
+  const m=META[predicted],sc=SEV_COLORS[m.sev],conf=(probs[predicted]*100).toFixed(1);
+  // health badge
+  const hb=document.getElementById('m-health');
+  hb.style.color=sc; hb.style.borderColor=sc; hb.style.background=sc+'22';
+  hb.textContent=(m.sev===0?'● HEALTHY':m.sev===1?'▲ LOW FAULT':m.sev===2?'⬆ MODERATE':'🔴 CRITICAL');
+  document.getElementById('m-conf').textContent=conf+'%';
+  document.getElementById('m-icon').textContent=m.icon;
+  const mc=document.getElementById('m-cls'); mc.textContent=m.label; mc.style.color=m.color;
+  document.getElementById('m-conf2').innerHTML=`<span style="font-family:var(--disp);font-size:1.1rem;font-weight:700;color:${m.color}">${conf}%</span>`;
+  for(let i=1;i<=3;i++){const d=document.getElementById('msv'+i);d.className='mini-sev-dot'+(i<=m.sev?' on':'');if(i<=m.sev){d.style.background=sc;d.style.boxShadow='0 0 6px '+sc;}else{d.style.background='var(--brd)';d.style.boxShadow='none';}}
+  const st=document.getElementById('msv-txt'); st.textContent=SEV_LABELS[m.sev]; st.style.color=sc;
+
+  drawBearing3D(predicted, probs);
+  updateAlerts(predicted, probs, m);
+  toast(`Classified: ${m.label} (${conf}%)`,'success',2000);
+}
+
+const FAULT_WHY={
+  normal:'All 9 vibration features are within nominal range. RMS and kurtosis are both low, indicating no impulsive content above the noise floor.',
+  ball:'Ball defects produce a double-contact impulse pattern (inner + outer race) modulated by ball spin frequency (BSF ≈ 70.5 Hz). Kurtosis is elevated because of these sharp, irregular impacts. RMS scales with defect diameter.',
+  inner:'Inner race rotates with shaft — the defect cycles through the load zone at BPFI ≈ 162 Hz. Impacts are amplitude-modulated by shaft speed. Skewness becomes non-zero due to asymmetric loading direction as defect enters/exits load zone.',
+  outer:'Stationary outer race — defect at fixed angular position (6 o\'clock, maximum load zone). Balls impact at BPFO ≈ 107 Hz. No amplitude modulation → cleanest, most periodic impulse pattern. Outer race faults at large sizes produce the highest vibration amplitudes in this dataset.',
+};
+function updateAlerts(cls, probs, m){
+  if(m.sev===0){
+    document.getElementById('alert-panel').innerHTML=`
+      <div style="font-family:var(--disp);font-size:.62rem;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:.25rem">Real-time Alerts</div>
+      <div style="background:var(--surf2);border:1px solid var(--brd);border-radius:var(--r);padding:1.2rem;text-align:center;font-size:.72rem;color:var(--muted)">
+        <div style="font-size:1.4rem;margin-bottom:.4rem">✅</div>No alerts — bearing is healthy<br>
+        <span style="font-size:.62rem">RMS=${monVals[4].toFixed(4)} · Kurtosis=${monVals[6].toFixed(3)}</span>
+      </div>`;
+    return;
+  }
+  const sc=SEV_COLORS[m.sev];
+  const actions={1:'Monitor daily. Schedule inspection within 30–60 days.',
+    2:'⚠️ Plan replacement within 7–14 days. Reduce load 20–30%.',
+    3:'🛑 IMMEDIATE action required. Stop machine or reduce load now. Emergency replacement within 24–48h.'};
+  const why=FAULT_WHY[m.type]||'';
+  document.getElementById('alert-panel').innerHTML=`
+    <div style="font-family:var(--disp);font-size:.62rem;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:.5rem">Real-time Alerts</div>
+    <div class="alert-card active" style="--ac:${sc}">
+      <div class="alert-hd">
+        <span class="alert-type" style="color:${sc}">${m.icon} ${m.label}</span>
+        <span class="alert-sev" style="color:${sc};border-color:${sc};background:${sc}18">${SEV_LABELS[m.sev]}</span>
+      </div>
+      <div class="alert-body">${actions[m.sev]}</div>
+      <div class="alert-meta">Confidence: ${(probs[cls]*100).toFixed(1)}% · RMS: ${monVals[4].toFixed(4)}g · Kurt: ${monVals[6].toFixed(3)}</div>
+      <div class="alert-detail">
+        <div class="alert-why">Why this fault type?</div>
+        ${why}
+      </div>
+    </div>
+    ${m.sev>=2?`<div class="alert-card" style="--ac:#EF4444;border-color:#EF444444;background:#EF444411">
+      <div class="alert-hd"><span class="alert-type" style="color:#EF4444">📋 Replacement Estimate</span></div>
+      <div class="alert-body">${m.sev===2?'Order bearing now. Allow 7–14 days for scheduling.':'Emergency order required. Bearing may fail within hours of continued operation.'}</div>
+    </div>`:''}`;
+}
+
+function drawBearing3D(predicted='Normal_1', probs={}){
+  const canvas=document.getElementById('bearing3d');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width=canvas.offsetWidth;
+  const H=canvas.height=canvas.offsetHeight;
+  const cx=W/2, cy=H/2;
+  const scale=Math.min(W,H)*0.4;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Background grid
+  ctx.strokeStyle='#1E2D4522';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  const m=META[predicted]||META['Normal_1'];
+  const sc=SEV_COLORS[m.sev]||'#10B981';
+  const exp=exploded?1.4:1;
+  const a=rotAngle;
+
+  // Draw outer race
+  const orR=scale*0.92*exp;
+  const orW=scale*0.12;
+  ctx.beginPath(); ctx.arc(cx,cy,orR,0,Math.PI*2);
+  ctx.strokeStyle=(m.type==='outer')?sc:'#2A3F5F'; ctx.lineWidth=orW;
+  ctx.stroke();
+  if(m.type==='outer'){
+    ctx.beginPath(); ctx.arc(cx,cy,orR,0,Math.PI*2);
+    ctx.strokeStyle=sc+'44'; ctx.lineWidth=orW+8;
+    ctx.stroke();
+  }
+
+  // Draw inner race
+  const irR=scale*0.5*(exploded?0.7:1);
+  const irW=scale*0.1;
+  ctx.beginPath(); ctx.arc(cx,cy,irR,0,Math.PI*2);
+  ctx.strokeStyle=(m.type==='inner')?sc:'#2A3F5F'; ctx.lineWidth=irW;
+  ctx.stroke();
+  if(m.type==='inner'){
+    ctx.beginPath(); ctx.arc(cx,cy,irR,0,Math.PI*2);
+    ctx.strokeStyle=sc+'44'; ctx.lineWidth=irW+8;
+    ctx.stroke();
+  }
+
+  // Shaft
+  const shR=scale*0.28*(exploded?0.5:1);
+  ctx.beginPath(); ctx.arc(cx,cy,shR,0,Math.PI*2);
+  ctx.fillStyle='#0D1421'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,shR,0,Math.PI*2);
+  ctx.strokeStyle='#1E2D45'; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle='#64748B'; ctx.font='bold '+Math.round(shR*0.3)+'px Space Mono,monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('SHAFT',cx,cy);
+
+  // Cage circle (dashed)
+  const cageR=scale*0.72*exp;
+  ctx.setLineDash([6,8]); ctx.beginPath(); ctx.arc(cx,cy,cageR,0,Math.PI*2);
+  ctx.strokeStyle='#1A2235'; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
+
+  // Balls
+  const nBalls=9, ballR=scale*0.075;
+  for(let i=0;i<nBalls;i++){
+    const angle=a+i*(Math.PI*2/nBalls);
+    const bx=cx+cageR*Math.cos(angle), by=cy+cageR*Math.sin(angle);
+    const isBallFault=m.type==='ball';
+    ctx.beginPath(); ctx.arc(bx,by,ballR,0,Math.PI*2);
+    ctx.fillStyle=isBallFault?sc+'33':'#1A2235'; ctx.fill();
+    ctx.beginPath(); ctx.arc(bx,by,ballR,0,Math.PI*2);
+    ctx.strokeStyle=isBallFault?sc:'#2A3F5F'; ctx.lineWidth=isBallFault?2.5:1.5; ctx.stroke();
+    if(isBallFault){
+      ctx.beginPath(); ctx.arc(bx,by,ballR+4,0,Math.PI*2);
+      ctx.strokeStyle=sc+'55'; ctx.lineWidth=3; ctx.stroke();
+    }
+  }
+
+  // Defect marker
+  if(m.sev>0){
+    let dx,dy,dr;
+    if(m.type==='outer'){dx=cx;dy=cy-orR;dr=8;}
+    else if(m.type==='inner'){const ang=a;dx=cx+irR*Math.cos(ang);dy=cy+irR*Math.sin(ang);dr=6;}
+    else{const ang=a;dx=cx+cageR*Math.cos(ang);dy=cy+cageR*Math.sin(ang);dr=5;}
+    // Defect dot with glow
+    for(let r=dr+10;r>0;r-=2){
+      ctx.beginPath(); ctx.arc(dx,dy,r,0,Math.PI*2);
+      ctx.fillStyle=sc+(Math.round(((dr+10-r)/(dr+10))*60).toString(16).padStart(2,'0'));
+      ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(dx,dy,dr,0,Math.PI*2);
+    ctx.fillStyle=sc; ctx.fill();
+    // Defect label
+    ctx.fillStyle=sc; ctx.font='bold 11px Space Mono,monospace'; ctx.textAlign='left';
+    ctx.fillText('DEFECT',dx+dr+6,dy);
+    ctx.font='9px Space Mono,monospace'; ctx.fillStyle=sc+'99';
+    ctx.fillText(m.label.split('—')[1]?.trim()||'',dx+dr+6,dy+13);
+  }
+
+  // Centre label
+  ctx.fillStyle=sc; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.font='bold 12px Space Mono,monospace';
+  ctx.fillText(m.sev===0?'NOMINAL':SEV_LABELS[m.sev].toUpperCase(),cx,20);
+}
+
+function startRotation(){
+  function step(){rotAngle+=0.008;drawBearing3D(lastPredicted,{});animId=requestAnimationFrame(step);}
+  animId=requestAnimationFrame(step);
+}
+let lastPredicted='Normal_1';
+
+// ═══════════ DASHBOARD ═══════════
+function initDash(){
+  // class list
+  document.getElementById('cls-list').innerHTML=CLASSES.map(cls=>{const m=META[cls];
+    return `<div class="cls-row" style="--rc:${m.color}">
+      <div class="cls-dot" style="background:${m.color};box-shadow:0 0 5px ${m.color}55"></div>
+      <span class="cls-name">${m.icon} ${m.label}</span>
+      <span class="cls-cnt">230</span>
+      <div class="cls-bar-w"><div class="prog"><div class="prog-fill" style="width:100%;background:${m.color}"></div></div></div>
+    </div>`;
+  }).join('');
+
+  // donut
+  new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',
+    data:{labels:CLASSES.map(c=>META[c].label),datasets:[{data:CLASSES.map(()=>230),
+      backgroundColor:CLASSES.map(c=>META[c].color),borderColor:CLASSES.map(c=>META[c].color+'CC'),
+      borderWidth:1.5,hoverOffset:10}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: 230 (10%)`},
+        backgroundColor:'#0D1421',titleColor:'#E2E8F0',bodyColor:'#94A3B8',borderColor:'#1E2D45',borderWidth:1,padding:10}},
+      animation:{animateScale:true,animateRotate:true,duration:900}}
+  });
+
+  // importance
+  const imp=DB.importance, sorted=Object.entries(imp).sort((a,b)=>b[1]-a[1]);
+  const colors=['#00D4FF','#8B5CF6','#10B981','#F59E0B','#EF4444','#F97316','#3B82F6','#06B6D4','#EC4899'];
+  new Chart(document.getElementById('impChart'),{
+    type:'bar',
+    data:{labels:sorted.map(([k])=>k),datasets:[{data:sorted.map(([,v])=>+(v*100).toFixed(2)),
+      backgroundColor:colors,borderColor:colors,borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.formattedValue}%`},
+        backgroundColor:'#0D1421',titleColor:'#E2E8F0',bodyColor:'#94A3B8',borderColor:'#1E2D45',borderWidth:1,padding:10}},
+      scales:{x:{grid:{color:'#1E2D4555'},ticks:{callback:v=>v+'%',color:'#64748B',font:{size:10}},border:{display:false}},
+        y:{grid:{display:false},ticks:{color:'#E2E8F0',font:{size:11,weight:700,family:"'JetBrains Mono',monospace"}},border:{display:false}}},
+      animation:{duration:700}}
+  });
+
+  // Correlation heatmap
+  const feats=DB.features, mat=DB.corr_matrix;
+  function cellBg(v){if(v>=0){const t=v;return `rgba(0,212,255,${(t*.7).toFixed(2)})`;}else{const t=-v;return `rgba(239,68,68,${(t*.7).toFixed(2)})`;}};
+  let html=`<table style="border-collapse:collapse;font-size:.55rem;font-family:var(--mono);width:100%"><thead><tr><th style="padding:.3rem .4rem;color:var(--muted)"></th>${feats.map(f=>`<th style="padding:.3rem .4rem;color:var(--muted);text-align:center">${f}</th>`).join('')}</tr></thead><tbody>`;
+  for(let i=0;i<feats.length;i++){html+=`<tr><th style="padding:.3rem .4rem;text-align:right;color:var(--muted)">${feats[i]}</th>`;
+    for(let j=0;j<feats.length;j++){const v=mat[i][j],bg=cellBg(v),tc=Math.abs(v)>.4?'#fff':'#64748B';
+      html+=`<td style="padding:.3rem .4rem;text-align:center;background:${bg};color:${tc};border:1px solid #0D142122">${v.toFixed(2)}</td>`;}
+    html+=`</tr>`;}
+  html+=`</tbody></table>`;
+  document.getElementById('corr-hm').innerHTML=html;
+}
+
+// ═══════════ ADVISER ═══════════
+let advVals=[...DB.presets.Normal_1], lastAdvPred=null;
+function initAdv(){
+  document.getElementById('adv-ps').innerHTML=CLASSES.map(cls=>{const m=META[cls];
+    return `<button class="adv-pb" style="color:${m.color};border-color:${m.color}" onclick="loadAdvP('${cls}')">${m.icon} ${m.label.split('—')[0].trim()}</button>`;
+  }).join('');
+  document.getElementById('qi-rows').innerHTML=FEATS.map((f,i)=>{
+    const info=FEAT_INFO[f]; const step=['mean','sd','rms'].includes(f)?0.0001:['skewness','kurtosis'].includes(f)?0.01:0.001;
+    return `<div class="qi-row">
+      <label class="qi-lbl">${f}</label>
+      <input type="range" id="asl-${f}" min="${info.min}" max="${info.max}" step="${step}" value="${advVals[i]}" oninput="sAdv('${f}',this.value,false)">
+      <input type="number" class="qi-num" id="anum-${f}" min="${info.min}" max="${info.max}" step="${step}" value="${advVals[i]}" oninput="sAdv('${f}',this.value,true)">
+    </div>`;
+  }).join('');
+  const qs=['When to replace?','What caused this fault?','Is it safe to run?','Explain kurtosis','Explain my features','How confident?'];
+  document.getElementById('qqs').innerHTML=qs.map(q=>`<button class="qq" onclick="askQ(${JSON.stringify(q)})">${q}</button>`).join('');
+  document.getElementById('btn-analyse').addEventListener('click',runAdv);
+  document.getElementById('btn-send').addEventListener('click',sendMsg);
+  document.getElementById('chat-inp').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendMsg();}});
+  document.getElementById('btn-clr').addEventListener('click',()=>{document.getElementById('chat-msgs').innerHTML='';lastAdvPred=null;postWelcome();document.getElementById('ctx-rd').innerHTML='<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:.5rem">No analysis yet</div>';});
+  postWelcome();
+}
+function sAdv(f,v,fromNum){const idx=FEATS.indexOf(f);advVals[idx]=parseFloat(v)||0;
+  const sl=document.getElementById('asl-'+f),num=document.getElementById('anum-'+f);
+  if(fromNum)sl.value=v;else num.value=parseFloat(v).toFixed(f==='mean'?5:3);}
+function loadAdvP(cls){advVals=[...DB.presets[cls]];FEATS.forEach((f,i)=>{sAdv(f,advVals[i],true);sAdv(f,advVals[i],false);});toast(`Loaded: ${META[cls].label}`,'info',1200);}
+function postWelcome(){appendSys('VibrationLab Expert System v1.0 · Offline');appendBot('👋 **Hello!** I\'m VibrationLab\'s AI adviser.\n\nLoad a preset or set your sensor values on the left, then click **Analyse** to get a full diagnostic report.\n\nI can tell you:\n• The fault type and severity\n• Root cause (what physically happened)\n• Replacement timeline\n• What the signal features mean');}
+function runAdv(){
+  const btn=document.getElementById('btn-analyse');btn.disabled=true;btn.textContent='🔄 Analysing…';
+  appendUser('Analyse current sensor readings');showTyp();
+  setTimeout(()=>{
+    const{predicted,probs}=classify(advVals);lastAdvPred={predicted,probs,feats:[...advVals]};
+    hideTyp();updateCtxD(predicted,probs);appendAdvReport(predicted,probs);
+    btn.disabled=false;btn.textContent='🔍 Analyse Bearing State';
+  },400);
+}
+function updateCtxD(cls,probs){const m=META[cls],sc=SEV_COLORS[m.sev],conf=(probs[cls]*100).toFixed(1);
+  document.getElementById('ctx-rd').innerHTML=`
+    <span class="ctx-pill" style="color:${m.color};border-color:${m.color};background:${m.color}18">${m.icon} ${m.label}</span>
+    <span style="font-size:.65rem;color:${sc};font-weight:700;margin-left:.35rem">● ${SEV_LABELS[m.sev]}</span>
+    <div style="font-size:.65rem;color:var(--muted);margin-top:.35rem">Confidence: <strong style="color:${m.color}">${conf}%</strong></div>`;}
+const ADV_ADVICE={
+  0:['✅ **Normal bearing operation detected.**','All vibration features are within nominal range.','Continue scheduled maintenance intervals.','Lubrication appears adequate.'],
+  1:['⚠️ **Low-severity fault detected.**','Early-stage defect signatures present.','Increase monitoring to daily checks.','Schedule inspection within 30–60 days.','Monitor RMS — alert if it rises >20%.'],
+  2:['🔶 **Moderate fault — action required.**','Significant defect signatures in kurtosis/RMS.','Plan bearing replacement within 7–14 days.','Reduce operational load 20–30% until replacement.','Order replacement bearing immediately.'],
+  3:['🔴 **CRITICAL FAULT — immediate action.**','Severe damage — risk of catastrophic failure imminent.','⛔ STOP or severely limit load NOW.','Emergency bearing replacement within 24–48 hours.','Full inspection of shaft, housing and adjacent components.'],
+};
+const ADV_ROOT={
+  normal:'No fault detected.',
+  ball:'Ball (rolling element) defect: surface pit contacts both races alternately at Ball Spin Frequency (BSF ≈ 70.5 Hz). Physical causes: rolling contact fatigue from millions of load cycles, inadequate lubrication allowing metal-to-metal contact, or contamination abrasion.',
+  inner:'Inner race defect: crack on the rotating inner race passes through the load zone at BPFI ≈ 162 Hz. Physical causes: shaft misalignment (most common), overloading, or corrosion pitting. The inner race\'s rotation creates an amplitude-modulated impact pattern.',
+  outer:'Outer race defect: pit at fixed position (6 o\'clock, load zone) struck by each ball at BPFO ≈ 107 Hz. Physical causes: overloading, contamination, corrosion, or improper installation. Produces the most periodic vibration pattern — no amplitude modulation.',
+};
+function appendAdvReport(cls,probs){
+  const m=META[cls],sc=SEV_COLORS[m.sev],conf=(probs[cls]*100).toFixed(1);
+  const lines=ADV_ADVICE[m.sev]||ADV_ADVICE[0];
+  const root=ADV_ROOT[m.type]||'';
+  const top3=Object.entries(probs).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  appendBotRaw(`<div class="adv-result-card">
+    <div class="arc-hd"><span style="font-size:.78rem;font-weight:700;font-family:var(--disp)">DIAGNOSTIC REPORT</span>
+      <span class="arc-sev" style="color:${sc};border-color:${sc};background:${sc}18">${SEV_LABELS[m.sev]}</span></div>
+    <div class="arc-sec"><div class="arc-sec-t">Assessment</div>${lines.map(l=>`<div class="arc-line">${mdH(l)}</div>`).join('')}</div>
+    <div class="arc-sec"><div class="arc-sec-t">Root Cause</div><div class="arc-line">${root}</div></div>
+    <div class="arc-sec"><div class="arc-sec-t">Signal Summary</div>
+      <div class="arc-line" style="font-family:var(--mono);font-size:.65rem;color:var(--muted)">RMS=${advVals[4].toFixed(4)} · Kurt=${advVals[6].toFixed(3)} · Crest=${advVals[7].toFixed(3)} · Skew=${advVals[5].toFixed(3)}</div></div>
+    <div class="arc-sec"><div class="arc-sec-t">Top Predictions</div>
+      ${top3.map(([c,p])=>{const cm=META[c];return `<div class="arc-line"><span style="color:${cm.color};font-weight:700">${cm.icon} ${cm.label}</span><span style="font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-left:.5rem">${(p*100).toFixed(1)}%</span></div>`;}).join('')}
+    </div>
+  </div>`);
+}
+const RULE_A={
+  'replace':p=>{const m=META[p.predicted];const r={0:'No replacement needed.',1:'Plan inspection within 30–60 days. Replace if progressing.',2:'Replace within 7–14 days.',3:'IMMEDIATE replacement — within 24h.'};return r[m.sev];},
+  'root cause':p=>{const m=META[p.predicted];return ADV_ROOT[m.type]||'Unknown.';},
+  'caused':p=>{const m=META[p.predicted];return ADV_ROOT[m.type]||'Unknown.';},
+  'safe':p=>{const m=META[p.predicted];const r={0:'✅ Safe — bearing is healthy.',1:'⚠️ Operate with caution and close monitoring.',2:'🔶 Limit operation — replace soon.',3:'🔴 UNSAFE — stop immediately.'};return r[m.sev];},
+  'kurtosis':_=>'**Kurtosis** is the 4th statistical moment, measuring the "peakedness" or impulsiveness of a signal. For a Gaussian (healthy) signal, excess kurtosis ≈ 0. When bearing defects create sharp periodic impacts, kurtosis rises sharply — often the first feature to change before RMS even moves. In this dataset, damaged bearings can show kurtosis values >10.',
+  'features':_=>'The 9 features in your CSV are computed from 2,048-point windows of the Drive End (DE) accelerometer at 48 kHz:\n• **RMS** — vibration energy\n• **Kurtosis** — impulsiveness (early fault indicator)\n• **Crest Factor** — peak-to-RMS ratio (shock detection)\n• **Skewness** — signal asymmetry\n• **Std Dev** — amplitude spread\n• **Form Factor** — waveform shape\n• **Max/Min** — peak amplitudes',
+  'confident':p=>`Model confidence: **${(p.probs[p.predicted]*100).toFixed(1)}%** for ${META[p.predicted].label}. The centroid classifier computes normalised Mahalanobis distances from each class prototype — lower distance = higher confidence.`,
+};
+function sendMsg(){const inp=document.getElementById('chat-inp');const msg=inp.value.trim();if(!msg)return;inp.value='';appendUser(msg);showTyp();
+  setTimeout(()=>{hideTyp();if(!lastAdvPred){appendBot('Please click **Analyse** first, then ask your question.');return;}
+    const lo=msg.toLowerCase();let resp=null;
+    for(const[key,fn] of Object.entries(RULE_A)){if(lo.includes(key)){resp=fn(lastAdvPred);break;}}
+    if(!resp) resp=`Based on the last prediction (**${META[lastAdvPred.predicted].label}**, ${(lastAdvPred.probs[lastAdvPred.predicted]*100).toFixed(1)}% confidence), I recommend reviewing the ${SEV_LABELS[META[lastAdvPred.predicted].sev]} severity guidance. Try: "When to replace?", "What caused this?", or "Is it safe to run?"`;
+    appendBot(resp);},350);}
+function askQ(q){document.getElementById('chat-inp').value=q;sendMsg();}
+function appendSys(t){const c=document.getElementById('chat-msgs');c.insertAdjacentHTML('beforeend',`<div class="msg-sys">${t}</div>`);scrollC();}
+function appendBot(t){const c=document.getElementById('chat-msgs');c.insertAdjacentHTML('beforeend',`<div class="msg-bot"><div class="msg-bot-av">🤖</div><div class="msg-bot-b">${mdH(t)}</div></div>`);scrollC();}
+function appendBotRaw(html){const c=document.getElementById('chat-msgs');c.insertAdjacentHTML('beforeend',`<div class="msg-bot"><div class="msg-bot-av">🤖</div><div style="max-width:90%">${html}</div></div>`);scrollC();}
+function appendUser(t){const c=document.getElementById('chat-msgs');c.insertAdjacentHTML('beforeend',`<div class="msg-user"><div class="msg-user-b">${t.replace(/</g,'&lt;')}</div></div>`);scrollC();}
+let typEl=null;
+function showTyp(){const c=document.getElementById('chat-msgs');typEl=document.createElement('div');typEl.className='msg-bot';typEl.innerHTML='<div class="msg-bot-av">🤖</div><div class="typing-dots"><div class="td"></div><div class="td"></div><div class="td"></div></div>';c.appendChild(typEl);scrollC();}
+function hideTyp(){typEl?.remove();typEl=null;}
+function scrollC(){const c=document.getElementById('chat-msgs');if(c)c.scrollTop=c.scrollHeight;}
+function mdH(t){return t.replace(/\\*\\*(.+?)\\*\\*/g,'<strong>$1</strong>').replace(/\\*(.+?)\\*/g,'<em>$1</em>').replace(/\\n•/g,'<br>•').replace(/\\n/g,'<br>');}
+
+// ═══════════ BOOT ═══════════
+document.addEventListener('DOMContentLoaded',()=>{
+  initIntro();
+  showSignal('normal',document.querySelector('.sig-btn[data-sig="normal"]'));
+  showBearingInfo('outer');
+});
+</script>
+</body>
+</html>"""
+
+HTML = HTML.replace('DB_PLACEHOLDER', DB_JSON).replace('WV_PLACEHOLDER', WV_JSON)
+
+with open('/mnt/user-data/outputs/VibrationLab.html','w') as f:
+    f.write(HTML)
+print(f"Done: {len(HTML)} bytes ({len(HTML)//1024} KB)")
+PYEOF
+python3 /tmp/gen_platform.py

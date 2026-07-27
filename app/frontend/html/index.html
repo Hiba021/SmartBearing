@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Introduction — BearingIQ</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <style>
+    .intro-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--sp-8);
+      margin-top: var(--sp-6);
+    }
+    
+    .intro-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-8);
+      align-items: center;
+      background: var(--clr-surface);
+      border-radius: var(--r-lg);
+      padding: var(--sp-8);
+      border: 2px solid var(--clr-border);
+      box-shadow: var(--shadow-md);
+      transition: all var(--t-normal);
+    }
+    
+    .intro-section:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+    
+    .intro-section.reverse {
+      grid-template-columns: 1fr 1fr;
+    }
+    
+    .intro-text h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--clr-primary);
+      margin-bottom: var(--sp-4);
+      letter-spacing: -0.5px;
+    }
+    
+    .intro-text p {
+      font-size: 1.05rem;
+      color: var(--clr-text-muted);
+      line-height: 1.7;
+      margin-bottom: var(--sp-4);
+    }
+    
+    .intro-image {
+      border-radius: var(--r-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      border: 2px solid var(--clr-border);
+    }
+    
+    .intro-image img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      display: block;
+      transition: transform var(--t-slow);
+    }
+    
+    .intro-image:hover img {
+      transform: scale(1.03);
+    }
+    
+    .image-caption {
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--clr-text-muted);
+      margin-top: var(--sp-2);
+      font-style: italic;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--sp-6);
+      margin-top: var(--sp-8);
+    }
+
+    .feature-card {
+      background: var(--clr-surface-2);
+      border: 2px solid var(--clr-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-6);
+      transition: all var(--t-fast);
+    }
+    
+    .feature-card:hover {
+      border-color: var(--clr-primary);
+      background: var(--clr-primary-light);
+      transform: translateY(-4px);
+    }
+    
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: var(--sp-3);
+    }
+    
+    .feature-card h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--clr-text);
+      margin-bottom: var(--sp-2);
+    }
+
+    @media (max-width: 1000px) {
+      .intro-section, .intro-section.reverse {
+        grid-template-columns: 1fr;
+      }
+      .intro-section.reverse .intro-image {
+        grid-row: 1;
+      }
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<script src="../js/sidebar.js"></script>
+
+<!-- ── Main wrapper ─────────────────────────────────────────── -->
+<div class="main-wrapper">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Project Introduction</div>
+        <div class="topbar-breadcrumb">BearingIQ → Introduction</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-sm btn-primary" onclick="window.location.href='dashboard.html'">
+        Go to Dashboard →
+      </button>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content">
+
+    <div class="dashboard-hero anim-fade-in-up">
+      <div class="hero-tag">
+        📖 Project Overview
+      </div>
+      <h1 class="hero-title">Welcome to BearingIQ</h1>
+      <p class="hero-subtitle" style="max-width: 700px; font-size: 1.1rem;">
+        An intelligent, embedded-systems-driven platform for predictive maintenance. 
+        We combine real-time sensor data with Machine Learning and Artificial Intelligence 
+        to detect, analyze, and prevent critical motor bearing failures.
+      </p>
+    </div>
+
+    <div class="intro-grid">
+
+      <!-- Section 1: The Motor and Bearings -->
+      <div class="intro-section anim-fade-in-up delay-1">
+        <div class="intro-text">
+          <h2>The Problem: Motor & Bearing Failures</h2>
+          <p>
+            In modern embedded systems and industrial applications, electric motors are the backbone of operations. However, they are prone to mechanical degradation over time. 
+          </p>
+          <p>
+            <strong>Bearings</strong> are critical components that support the motor's shaft and reduce friction. They endure intense physical stress. In fact, bearing failure accounts for over <strong>40% of all electric motor breakdowns</strong>. When a bearing's inner race, outer race, or rolling ball elements get damaged (even microscopically), it creates distinct vibration patterns.
+          </p>
+          <div class="chip-group" style="margin-top: 1.5rem;">
+            <span class="chip active">Embedded Systems</span>
+            <span class="chip active">Predictive Maintenance</span>
+            <span class="chip active">Vibration Analysis</span>
+          </div>
+        </div>
+        <div>
+          <div class="intro-image">
+            <img src="../images/WholeMotor.png" alt="A whole electric motor">
+          </div>
+          <div class="image-caption">Standard Electric Motor structure</div>
+          <div class="intro-image" style="margin-top: 1rem;">
+            <img src="../images/bearing_ball.png" alt="Bearing and Ball elements">
+          </div>
+          <div class="image-caption">Close up: Bearing and its inner rolling ball elements</div>
+        </div>
+      </div>
+
+      <!-- Section 2: CWRU Dataset -->
+      <div class="intro-section reverse anim-fade-in-up delay-2">
+        <div>
+          <div class="intro-image">
+            <img src="../images/imageCWR.png" alt="CWRU Bearing Data Collection Setup">
+          </div>
+          <div class="image-caption">The Case Western Reserve University (CWRU) experimental setup</div>
+        </div>
+        <div class="intro-text">
+          <h2>The Data: CWRU Bearing Dataset</h2>
+          <p>
+            To build our AI models, we rely on the industry-standard <strong>CWRU Bearing Dataset</strong>. 
+            This dataset was collected using accelerometers placed on motor housings to measure high-frequency vibration signals (up to 48kHz).
+          </p>
+          <p>
+            Our project processes these raw time-series vibration signals into key statistical features: <strong>RMS, Kurtosis, Skewness, Crest Factor, etc.</strong> 
+            By analyzing these features, we can distinguish between a healthy motor and one with a microscopic 0.007-inch defect on its inner race.
+          </p>
+          <button class="btn btn-primary" style="margin-top: 1rem;" onclick="window.location.href='analysis.html'">
+            Explore Dataset Statistics
+          </button>
+        </div>
+      </div>
+
+      <!-- Section 3: AI Solutions -->
+      <div class="intro-section anim-fade-in-up delay-3">
+        <div class="intro-text" style="grid-column: 1 / -1;">
+          <h2 style="text-align: center;">Our Solution: ML & API Integration</h2>
+          <p style="text-align: center; max-width: 800px; margin: 0 auto;">
+            BearingIQ isn't just a dashboard; it's a complete intelligent pipeline. We've built a robust <strong>Python Flask REST API</strong> that serves Machine Learning predictions and powers the following advanced features.
+          </p>
+          
+          <div class="features-grid">
+            <div class="feature-card">
+              <div class="feature-icon">🤖</div>
+              <h3>AI Adviser</h3>
+              <p style="font-size: 0.9rem; margin:0">A conversational expert system. Feed it sensor data, and it acts as a virtual maintenance engineer—telling you the root cause, assessing severity, and recommending a timeline for parts replacement.</p>
+            </div>
+            
+            <div class="feature-card">
+              <div class="feature-icon">🔮</div>
+              <h3>Live ML Prediction</h3>
+              <p style="font-size: 0.9rem; margin:0">Using a Random Forest Classifier trained to ~98% accuracy. Modify sensor readings dynamically and instantly visualize how the model's confidence shifts across the 10 different fault classes.</p>
+            </div>
+            
+            <div class="feature-card">
+              <div class="feature-icon">⚙️</div>
+              <h3>REST API Integration</h3>
+              <p style="font-size: 0.9rem; margin:0">Ready for IoT. Edge devices and embedded systems can send HTTP POST requests to <code>/api/predict</code> with live telemetry data to receive immediate health assessments programmatically.</p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 3rem;">
+            <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
+            <button class="btn btn-lg btn-primary" onclick="window.location.href='bearing-science.html'">
+              Next: Bearing Science 🔬
+            </button>
+            <button class="btn btn-lg btn-outline" onclick="window.location.href='dashboard.html'">
+              Go to Dashboard 🚀
+            </button>
+          </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/main.js?v=2"></script>
+</body>
+</html>

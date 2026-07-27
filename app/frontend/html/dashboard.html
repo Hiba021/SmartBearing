@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BearingIQ — Bearing Fault Diagnosis Platform</title>
+  <meta name="description" content="ML-powered bearing fault diagnosis using CWRU dataset. Real-time classification, statistical analysis, and AI-powered maintenance advice.">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <script src="../js/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<script src="../js/sidebar.js"></script>
+
+<!-- ── Main wrapper ─────────────────────────────────────────── -->
+<div class="main-wrapper">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Dashboard Overview</div>
+        <div class="topbar-breadcrumb">BearingIQ → Home</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-status">
+        <div class="status-dot"></div>
+        Models Ready
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="window.location.href='predict.html'">
+        🔮 New Prediction
+      </button>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content">
+
+    <!-- Hero -->
+    <div class="dashboard-hero anim-fade-in-up">
+      <div class="hero-tag">
+        🔧 Embedded Systems + Machine Learning
+      </div>
+      <h1 class="hero-title">Bearing Fault<br>Diagnosis Platform</h1>
+      <p class="hero-subtitle">
+        Real-time vibration signal classification using Random Forest &amp; SVM.
+        Detect bearing faults early — Ball, Inner Race, Outer Race — at three severity levels.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-hero-primary" onclick="window.location.href='predict.html'">
+          🔮 Run Prediction
+        </button>
+        <button class="btn-hero-outline" onclick="window.location.href='analysis.html'">
+          📊 View Analysis
+        </button>
+        <button class="btn-hero-outline" onclick="window.location.href='adviser.html'">
+          🤖 AI Adviser
+        </button>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-val">2,300</div>
+          <div class="hero-stat-label">Training Samples</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">10</div>
+          <div class="hero-stat-label">Fault Classes</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">9</div>
+          <div class="hero-stat-label">Signal Features</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">~98%</div>
+          <div class="hero-stat-label">RF Accuracy</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI grid -->
+    <div class="kpi-grid" id="kpi-grid">
+      <!-- Filled by dashboard.js -->
+      <div class="loading-spinner" style="grid-column:1/-1">
+        <div class="spinner"></div>
+        <span>Loading data…</span>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-grid">
+
+      <!-- Feature importance chart -->
+      <div class="card anim-fade-in-up delay-2">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-title-icon">📈</span>
+            Feature Importance (Random Forest)
+          </div>
+          <span class="badge badge-normal">RF Model</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height:260px">
+            <canvas id="importanceChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class donut chart -->
+      <div class="card anim-fade-in-up delay-3">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-title-icon">🍩</span>
+            Class Distribution
+          </div>
+          <span class="badge badge-outer">Balanced</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:1rem">
+          <div class="chart-container" style="height:220px;width:220px">
+            <canvas id="donutChart"></canvas>
+          </div>
+          <div style="font-size:.75rem;color:var(--clr-text-muted);text-align:center">
+            230 samples per class · perfectly balanced
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom row -->
+    <div class="bottom-grid">
+
+      <!-- Class breakdown list -->
+      <div class="card anim-fade-in-up delay-4">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-title-icon">🔧</span>
+            All Fault Classes
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="window.location.href='analysis.html'">
+            View Stats →
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="class-list" id="class-list">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div style="display:flex;flex-direction:column;gap:var(--sp-5)">
+
+        <!-- Model performance -->
+        <div class="card anim-fade-in-up delay-5">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-title-icon">🎯</span>
+              Model Performance
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="model-cards" id="model-cards">
+              <div class="loading-spinner" style="grid-column:1/-1"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="card anim-fade-in-up delay-5">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-title-icon">⚡</span>
+              Quick Actions
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="quick-actions">
+              <a href="predict.html" class="quick-action" style="--qa-color:#4F46E5">
+                <div class="qa-icon" style="--qa-bg:#EEF2FF">🔮</div>
+                <div>
+                  <div class="qa-label">Predict Fault</div>
+                  <div class="qa-desc">Enter sensor values</div>
+                </div>
+              </a>
+              <a href="analysis.html" class="quick-action" style="--qa-color:#10B981">
+                <div class="qa-icon" style="--qa-bg:#D1FAE5">📊</div>
+                <div>
+                  <div class="qa-label">Deep Analysis</div>
+                  <div class="qa-desc">Stats &amp; correlations</div>
+                </div>
+              </a>
+              <a href="adviser.html" class="quick-action" style="--qa-color:#8B5CF6">
+                <div class="qa-icon" style="--qa-bg:#EDE9FE">🤖</div>
+                <div>
+                  <div class="qa-label">AI Adviser</div>
+                  <div class="qa-desc">Get recommendations</div>
+                </div>
+              </a>
+              <a href="analysis.html#correlation" class="quick-action" style="--qa-color:#F59E0B">
+                <div class="qa-icon" style="--qa-bg:#FEF3C7">🌡️</div>
+                <div>
+                  <div class="qa-label">Heatmap</div>
+                  <div class="qa-desc">Feature correlation</div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent predictions -->
+        <div class="card anim-fade-in-up delay-5">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-title-icon">🕐</span>
+              Recent Predictions
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="window.location.href='predict.html'">New →</button>
+          </div>
+          <div class="card-body">
+            <div class="prediction-feed" id="prediction-feed">
+              <div class="loading-spinner"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Fault types legend -->
+    <div class="card anim-fade-in-up" style="margin-top:var(--sp-6)">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-title-icon">📖</span>
+          Fault Type Reference
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-3" style="gap:var(--sp-5)">
+          <div style="border-left:4px solid #F59E0B;padding-left:1rem">
+            <div style="font-weight:800;color:#F59E0B;margin-bottom:.5rem">⚙️ Ball Faults</div>
+            <p style="font-size:.82rem;color:var(--clr-text-muted);line-height:1.6">
+              Defects on the rolling element surface. Detected by characteristic Ball Defect Frequency (BDF).
+              Three severity levels: 0.007″, 0.014″, 0.021″ diameter.
+            </p>
+          </div>
+          <div style="border-left:4px solid #8B5CF6;padding-left:1rem">
+            <div style="font-weight:800;color:#8B5CF6;margin-bottom:.5rem">🔄 Inner Race Faults</div>
+            <p style="font-size:.82rem;color:var(--clr-text-muted);line-height:1.6">
+              Defects on the inner race surface. Related to shaft misalignment. Detected by Ball Pass
+              Frequency Inner race (BPFI).
+            </p>
+          </div>
+          <div style="border-left:4px solid #3B82F6;padding-left:1rem">
+            <div style="font-weight:800;color:#3B82F6;margin-bottom:.5rem">🔁 Outer Race Faults</div>
+            <p style="font-size:.82rem;color:var(--clr-text-muted);line-height:1.6">
+              Defects on the stationary outer race. Often from contamination or overloading. Detected by
+              Ball Pass Frequency Outer race (BPFO).
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/main.js?v=2"></script>
+<script src="../js/dashboard.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis — BearingIQ</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/analysis.css">
+  <script src="../js/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<script src="../js/sidebar.js"></script>
+
+<!-- ── Main wrapper ─────────────────────────────────────────── -->
+<div class="main-wrapper">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Deep Statistics Analysis</div>
+        <div class="topbar-breadcrumb">BearingIQ → Analysis</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-sm btn-ghost" id="btn-export">📥 Export to CSV</button>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content" id="stats-container">
+
+    <!-- Summary cards -->
+    <div class="summary-grid" id="summary-cards">
+      <!-- Injected by analysis.js -->
+    </div>
+
+    <div class="stats-layout">
+      <!-- ── Section 1: Detailed Table ────────────────────────── -->
+      <div class="card anim-fade-in-up">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-title-icon">🧮</span>
+            Per-Class Feature Statistics
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="feature-tabs" id="feature-tabs">
+            <!-- Tabs injected by JS -->
+          </div>
+          <div id="stats-table-wrap">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 2: Box Plot & Correlation ────────────────── -->
+      <div class="radar-section">
+        
+        <!-- Box plots -->
+        <div class="card anim-fade-in-up delay-1">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-title-icon">📈</span>
+              Distribution across Fault Classes
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="boxplot-controls">
+              <span class="toolbar-label">Analyze Feature:</span>
+              <select id="boxplot-feat-select" class="select-styled">
+                <option value="max">Max Amplitude</option>
+                <option value="min">Min Amplitude</option>
+                <option value="mean">Mean</option>
+                <option value="sd">Standard Deviation</option>
+                <option value="rms" selected>RMS</option>
+                <option value="skewness">Skewness</option>
+                <option value="kurtosis">Kurtosis</option>
+                <option value="crest">Crest Factor</option>
+                <option value="form">Form Factor</option>
+              </select>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--clr-text-muted); margin-bottom: 1rem;">
+              <strong>What to observe:</strong> Box plots display the distribution of feature values across different fault classes.
+              Compare the medians (center of the distribution) and the interquartile ranges (spread) to see how effectively
+              a feature separates healthy data from various fault states. Larger separations mean better diagnostic power.
+            </div>
+            <div class="chart-container" style="height:320px">
+              <canvas id="boxPlotChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Correlation -->
+        <div class="card anim-fade-in-up delay-2" id="correlation">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-title-icon">🌡️</span>
+              Feature Correlation Heatmap
+            </div>
+          </div>
+          <div class="card-body" style="display:flex; flex-direction:column; justify-content:center; align-items:center; padding:1rem">
+            <div style="font-size: 0.85rem; color: var(--clr-text-muted); margin-bottom: 1rem; text-align: center;">
+              <strong>What to observe:</strong> This heatmap shows the Pearson correlation between features. Values near 1 (dark blue) or -1 (dark red) indicate strong correlation. Features with low correlation provide independent information, which is ideal for training robust ML models.
+            </div>
+            <div id="corr-heatmap" style="width:400px;max-width:100%">
+               <div class="loading-spinner"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Section 3: Radar Chart ─────────────────────────── -->
+      <div class="card anim-fade-in-up delay-3">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-title-icon">🕸️</span>
+            Class Profile Comparison (Normalized)
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height:380px; max-width:700px; margin:0 auto">
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/main.js?v=2"></script>
+<script src="../js/analysis.js?v=2"></script>
+</body>
+</html>

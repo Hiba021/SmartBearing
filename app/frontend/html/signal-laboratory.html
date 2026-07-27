@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BearingIQ — Signal Laboratory</title>
+<meta name="description" content="Interactive Signal-to-Machine Learning Explanation Laboratory based on the real CWRU Bearing Dataset. Explore raw vibration signals, feature extraction, and ML pipeline.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS — identical to BearingIQ_complete.html
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#F0F4FF;--surf:#fff;--surf2:#F8FAFF;--brd:#E2E8F8;--brd2:#C7D2FE;
+  --pri:#4F46E5;--pril:#EEF2FF;--prid:#3730A3;
+  --green:#10B981;--greenl:#D1FAE5;--yellow:#F59E0B;--yellowl:#FEF3C7;
+  --orange:#F97316;--red:#EF4444;--redl:#FEE2E2;
+  --violet:#8B5CF6;--blue:#3B82F6;--bluem:#2563EB;--blued:#1D4ED8;
+  --cyan:#06B6D4;--cyanl:#CFFAFE;
+  --tx:#0F172A;--muted:#64748B;--light:#94A3B8;
+  --r:12px;--rl:18px;--rx:24px;
+  --sh:0 1px 3px rgba(79,70,229,.07),0 1px 2px rgba(0,0,0,.05);
+  --shm:0 4px 16px rgba(79,70,229,.10),0 2px 4px rgba(0,0,0,.06);
+  --shl:0 8px 32px rgba(79,70,229,.14),0 4px 8px rgba(0,0,0,.08);
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --sw:256px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;display:flex}
+a{color:inherit;text-decoration:none}button{cursor:pointer;font-family:inherit;border:none;background:none}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:3px}
+
+/* SIDEBAR */
+.sidebar{
+  width:var(--sw);min-height:100vh;background:var(--surf);
+  border-right:2px solid var(--brd);display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:100;box-shadow:var(--shm);
+  overflow-y:auto;
+}
+.sidebar-logo{padding:1.5rem;border-bottom:2px solid var(--brd);display:flex;align-items:center;gap:.75rem}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--pri),#7C3AED);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(79,70,229,.35)}
+.logo-name{font-weight:800;font-size:1.05rem;background:linear-gradient(135deg,var(--pri),#7C3AED);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block}
+.logo-sub{font-size:.62rem;color:var(--muted);font-weight:600;letter-spacing:.5px}
+.sidebar-nav{flex:1;padding:.75rem;display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:.62rem;font-weight:700;color:var(--light);letter-spacing:1px;
+  text-transform:uppercase;padding:.75rem .75rem .4rem}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border-radius:var(--r);
+  font-size:.82rem;font-weight:500;color:var(--muted);transition:all .15s;
+  border-left:3px solid transparent;cursor:pointer;user-select:none}
+.nav-item:hover{background:var(--pril);color:var(--pri);border-left-color:var(--pri)}
+.nav-item.active{background:var(--pril);color:var(--pri);border-left-color:var(--pri);font-weight:700}
+.nav-item-icon{font-size:1rem;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--pri);color:#fff;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:20px}
+.sidebar-footer{padding:1rem 1.5rem;border-top:2px solid var(--brd);font-size:.72rem;color:var(--light)}
+.sidebar-footer strong{display:block;color:var(--muted);font-size:.75rem;margin-bottom:2px}
+
+/* MAIN WRAPPER */
+.main-wrap{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--surf);border-bottom:2px solid var(--brd);padding:0 2rem;height:62px;
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh)}
+.topbar-title{font-size:1.05rem;font-weight:700}
+.topbar-crumb{font-size:.75rem;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:.75rem}
+.top-status{display:flex;align-items:center;gap:.5rem;background:var(--cyanl);color:var(--cyan);
+  padding:5px 12px;border-radius:20px;font-size:.72rem;font-weight:700;border:1.5px solid var(--cyan)}
+.pulse{width:7px;height:7px;background:var(--cyan);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* PAGE */
+.page{padding:2rem;max-width:1400px;margin:0 auto;width:100%}
+
+/* CARDS */
+.card{background:var(--surf);border-radius:var(--rl);border:2px solid var(--brd);
+  box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s,transform .2s;margin-bottom:1.5rem}
+.card:hover{box-shadow:var(--shm);transform:translateY(-1px)}
+.card-hd{padding:1.1rem 1.5rem;border-bottom:2px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:.92rem;font-weight:700;display:flex;align-items:center;gap:.5rem}
+.card-body{padding:1.5rem}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.55rem 1.1rem;border-radius:var(--r);
+  font-size:.8rem;font-weight:600;transition:all .15s;border:2px solid transparent;cursor:pointer}
+.btn-pri{background:var(--pri);color:#fff;border-color:var(--pri);box-shadow:0 2px 8px rgba(79,70,229,.3)}
+.btn-pri:hover{background:var(--prid);transform:translateY(-1px)}
+.btn-ghost{background:var(--surf2);color:var(--muted);border-color:var(--brd)}
+.btn-ghost:hover{background:var(--brd);color:var(--tx)}
+.btn-outline{background:transparent;color:var(--pri);border-color:var(--pri)}
+.btn-outline:hover{background:var(--pril);transform:translateY(-1px)}
+.btn-sm{padding:.35rem .85rem;font-size:.72rem}
+.btn-lg{padding:.85rem 1.75rem;font-size:.92rem}
+.btn-cyan{background:var(--cyan);color:#fff;border-color:var(--cyan)}
+.btn-cyan:hover{background:#0891B2;transform:translateY(-1px)}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-green:hover{background:#059669;transform:translateY(-1px)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;
+  font-size:.65rem;font-weight:700;border:1.5px solid transparent}
+.badge-normal{background:var(--greenl);color:var(--green);border-color:#86EFAC}
+.badge-lab{background:var(--cyanl);color:var(--cyan);border-color:#67E8F9}
+.badge-new{background:#EDE9FE;color:var(--violet);border-color:#C4B5FD}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.anim-fade-up{animation:fadeUp .5s ease both}
+.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}.d4{animation-delay:.2s}.d5{animation-delay:.25s}
+
+/* ============================================================
+   HERO SECTION
+   ============================================================ */
+.lab-hero{
+  background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 50%,#06B6D4 100%);
+  border-radius:var(--rx);padding:2.75rem 3rem;color:#fff;position:relative;
+  overflow:hidden;margin-bottom:2rem;box-shadow:0 8px 32px rgba(79,70,229,.35)
+}
+.lab-hero::before,.lab-hero::after,.lab-hero .orb3{
+  content:'';position:absolute;border-radius:50%;pointer-events:none
+}
+.lab-hero::before{
+  top:-80px;right:-80px;width:320px;height:320px;
+  background:rgba(255,255,255,.08);
+  animation:orbFloat1 8s ease-in-out infinite
+}
+.lab-hero::after{
+  bottom:-100px;left:20%;width:250px;height:250px;
+  background:rgba(255,255,255,.05);
+  animation:orbFloat2 10s ease-in-out infinite reverse
+}
+.orb3{
+  top:40%;right:30%;width:120px;height:120px;
+  background:rgba(255,255,255,.06);
+  animation:orbFloat1 6s ease-in-out infinite 2s
+}
+@keyframes orbFloat1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,-20px) scale(1.05)}}
+@keyframes orbFloat2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-15px,15px) scale(0.95)}}
+.hero-tag{display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 14px;
+  font-size:.7rem;font-weight:700;letter-spacing:.5px;margin-bottom:1rem;position:relative;z-index:2}
+.lab-hero h1{font-size:2.4rem;font-weight:900;letter-spacing:-1px;line-height:1.1;margin-bottom:.75rem;position:relative;z-index:2}
+.lab-hero h1 span{opacity:.75}
+.lab-hero>p{font-size:.95rem;opacity:.88;max-width:600px;line-height:1.65;margin-bottom:1.75rem;position:relative;z-index:2}
+.hero-btns{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:2rem;position:relative;z-index:2}
+.btn-hp{background:#fff;color:var(--pri);padding:10px 22px;border-radius:var(--r);font-weight:700;
+  font-size:.85rem;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:all .15s}
+.btn-hp:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.btn-ho{background:rgba(255,255,255,.12);color:#fff;padding:10px 22px;border-radius:var(--r);
+  font-weight:600;font-size:.85rem;border:1.5px solid rgba(255,255,255,.35);cursor:pointer;transition:all .15s}
+.btn-ho:hover{background:rgba(255,255,255,.22);transform:translateY(-2px)}
+.hero-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;position:relative;z-index:2;
+  padding-top:1.5rem;border-top:1px solid rgba(255,255,255,.2)}
+.hero-stat{background:rgba(255,255,255,.12);backdrop-filter:blur(10px);border-radius:var(--r);
+  padding:1rem;text-align:center;border:1px solid rgba(255,255,255,.18);transition:.3s}
+.hero-stat:hover{background:rgba(255,255,255,.2);transform:translateY(-4px)}
+.hero-stat h2{font-size:1.6rem;font-weight:800;letter-spacing:-.5px;line-height:1}
+.hero-stat span{font-size:.68rem;opacity:.8;margin-top:4px;display:block;font-weight:500}
+
+/* ============================================================
+   SECTION HEADERS
+   ============================================================ */
+.sec-hd{margin-bottom:1.5rem}
+.sec-title{font-size:1.5rem;font-weight:800;color:var(--tx);letter-spacing:-.5px;display:flex;align-items:center;gap:.5rem}
+.sec-sub{font-size:.85rem;color:var(--muted);margin-top:.35rem;line-height:1.5}
+
+/* ============================================================
+   PIPELINE FLOW — VERTICAL
+   ============================================================ */
+.pipeline-flow{display:flex;flex-direction:column;align-items:center;gap:0}
+.pipe-step{
+  display:flex;align-items:flex-start;gap:1.25rem;width:100%;max-width:680px;
+  padding:1.1rem 1.25rem;border-radius:var(--rl);border:2px solid var(--brd);
+  background:var(--surf);transition:all .3s;cursor:default;
+  opacity:0;transform:translateX(-30px);position:relative
+}
+.pipe-step.reveal{opacity:1;transform:translateX(0)}
+.pipe-step:hover{border-color:var(--pri);background:var(--pril);box-shadow:var(--shm);transform:translateX(4px)}
+.pipe-step:hover .pipe-step-icon{background:linear-gradient(135deg,var(--pri),#7C3AED);color:#fff}
+.pipe-icon-wrap{flex-shrink:0}
+.pipe-step-icon{width:46px;height:46px;border-radius:var(--r);background:var(--surf2);border:2px solid var(--brd);
+  display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:all .3s}
+.pipe-step-content h3{font-size:.92rem;font-weight:700;color:var(--tx);margin-bottom:.3rem}
+.pipe-step-content p{font-size:.78rem;color:var(--muted);line-height:1.5}
+.pipe-step-badge{position:absolute;top:.75rem;right:.9rem}
+.pipe-connector{width:2px;height:28px;background:linear-gradient(180deg,var(--brd2),var(--pri));margin-left:22px;
+  opacity:0;transition:opacity .5s .2s}
+.pipe-connector.reveal{opacity:1}
+
+/* ============================================================
+   MAT FILE EXPLORER
+   ============================================================ */
+.explorer-layout{display:grid;grid-template-columns:220px 1fr;gap:1.25rem}
+.file-tree{background:var(--surf2);border-radius:var(--rl);border:2px solid var(--brd);overflow:hidden}
+.file-tree-hd{padding:.75rem 1rem;background:var(--surf);border-bottom:2px solid var(--brd);
+  font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+  display:flex;align-items:center;gap:.4rem}
+.folder-item{padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;font-size:.8rem;
+  font-weight:600;color:var(--muted);border-bottom:1px solid var(--brd)}
+.mat-file{padding:.55rem 1rem .55rem 1.75rem;display:flex;align-items:center;gap:.5rem;font-size:.78rem;
+  color:var(--muted);cursor:pointer;transition:all .15s;border-bottom:1px solid var(--brd);font-family:var(--mono)}
+.mat-file:hover{background:var(--pril);color:var(--pri)}
+.mat-file.selected{background:var(--pril);color:var(--pri);font-weight:600;border-left:3px solid var(--pri)}
+.mat-preview{display:flex;flex-direction:column;gap:.75rem}
+.mat-preview-hd{font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:.25rem;
+  display:flex;align-items:center;gap:.4rem}
+.variable-item{background:var(--surf2);border:2px solid var(--brd);border-radius:var(--r);overflow:hidden;transition:all .2s}
+.variable-item:hover{border-color:var(--pri)}
+.variable-header{padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;
+  font-family:var(--mono);font-size:.8rem;font-weight:600;color:var(--tx)}
+.variable-header:hover{background:var(--pril);color:var(--pri)}
+.variable-toggle{transition:transform .25s;font-size:.7rem;color:var(--muted)}
+.variable-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.variable-body.open{max-height:300px}
+.variable-body-inner{padding:.9rem 1rem;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:.5rem}
+.var-prop{display:flex;justify-content:space-between;font-size:.75rem;padding:.2rem 0;border-bottom:1px dashed var(--brd)}
+.var-prop:last-child{border:none}
+.var-key{color:var(--muted);font-weight:500}
+.var-val{font-family:var(--mono);font-weight:600;color:var(--pri)}
+.var-desc{font-size:.72rem;color:var(--muted);line-height:1.5;background:var(--pril);
+  border-radius:var(--r);padding:.6rem .75rem;border-left:3px solid var(--pri)}
+
+/* ============================================================
+   SIGNAL STATS CARDS
+   ============================================================ */
+.signal-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem}
+.sig-stat{background:var(--surf2);border-radius:var(--rl);border:2px solid var(--brd);padding:1.1rem;
+  text-align:center;transition:all .2s;position:relative;overflow:hidden}
+.sig-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sc,var(--pri))}
+.sig-stat:hover{box-shadow:var(--shm);transform:translateY(-2px)}
+.sig-stat-val{font-size:1.7rem;font-weight:800;letter-spacing:-.5px;color:var(--tx);font-family:var(--mono)}
+.sig-stat-lbl{font-size:.68rem;color:var(--muted);font-weight:600;margin-top:.25rem;text-transform:uppercase;letter-spacing:.5px}
+.sig-stat-sub{font-size:.7rem;color:var(--light);margin-top:.2rem}
+.formula-box{background:var(--surf2);border:2px solid var(--brd2);border-radius:var(--r);padding:.75rem 1rem;
+  font-family:var(--mono);font-size:.85rem;color:var(--pri);display:inline-flex;align-items:center;
+  gap:.5rem;margin-top:.5rem}
+
+/* ============================================================
+   TIME DOMAIN TABLE
+   ============================================================ */
+.time-table-wrap{max-height:340px;overflow-y:auto;border-radius:var(--r);border:2px solid var(--brd)}
+.time-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.time-table th{background:var(--surf2);padding:.6rem .9rem;text-align:left;font-size:.65rem;
+  font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+  border-bottom:2px solid var(--brd);white-space:nowrap;position:sticky;top:0}
+.time-table td{padding:.5rem .9rem;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:.75rem}
+.time-table tr:hover td{background:var(--pril)}
+.time-table .td-idx{color:var(--muted);font-weight:500}
+.time-table .td-time{color:var(--cyan)}
+.time-table .td-acc{font-weight:700}
+.td-acc.pos{color:var(--green)}
+.td-acc.neg{color:var(--red)}
+.td-acc.near0{color:var(--muted)}
+
+/* ============================================================
+   CHART + SIGNAL VISUALIZATION
+   ============================================================ */
+.chart-controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+.chart-btn{padding:.4rem .9rem;border-radius:8px;font-size:.75rem;font-weight:600;
+  border:1.5px solid var(--brd);background:var(--surf2);color:var(--muted);cursor:pointer;transition:all .15s}
+.chart-btn:hover{border-color:var(--pri);color:var(--pri)}
+.chart-btn.active{border-color:var(--pri);background:var(--pril);color:var(--pri)}
+.chart-container{position:relative;height:280px}
+.chart-meta{display:flex;gap:1.5rem;margin-top:.75rem;flex-wrap:wrap}
+.chart-meta-item{font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:.35rem}
+.chart-meta-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ============================================================
+   WINDOWING SECTION
+   ============================================================ */
+.window-vis{background:var(--surf2);border-radius:var(--rl);border:2px solid var(--brd);padding:1.25rem}
+.window-track{position:relative;height:60px;background:linear-gradient(90deg,#EEF2FF,#E0E7FF);
+  border-radius:var(--r);overflow:hidden;margin-bottom:1rem;border:1.5px solid var(--brd2)}
+.window-track-signal{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;
+  justify-content:center;font-size:.7rem;color:var(--muted)}
+.window-highlight{position:absolute;top:0;height:100%;background:rgba(79,70,229,.2);
+  border:2px solid var(--pri);border-radius:4px;transition:left .5s cubic-bezier(.4,0,.2,1);width:8%}
+.window-controls{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
+.window-label{font-size:.78rem;font-weight:700;color:var(--pri);font-family:var(--mono)}
+.window-boxes{display:flex;gap:.5rem;flex-wrap:wrap}
+.win-box{padding:.4rem .85rem;border-radius:8px;border:1.5px solid var(--brd);
+  background:var(--surf);font-size:.72rem;font-weight:600;color:var(--muted);transition:all .2s;font-family:var(--mono)}
+.win-box.active{border-color:var(--pri);background:var(--pril);color:var(--pri);box-shadow:var(--shm)}
+.arrow-anim{font-size:1.2rem;color:var(--pri);animation:arrowPulse 1.5s ease-in-out infinite}
+@keyframes arrowPulse{0%,100%{opacity:.4;transform:translateX(0)}50%{opacity:1;transform:translateX(5px)}}
+
+/* ============================================================
+   FEATURE EXTRACTION
+   ============================================================ */
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.feat-card{background:var(--surf2);border:2px solid var(--brd);border-radius:var(--rl);
+  padding:1.1rem;transition:all .2s;cursor:default}
+.feat-card:hover{border-color:var(--pri);background:var(--pril);transform:translateY(-3px)}
+.feat-card-icon{font-size:1.5rem;margin-bottom:.5rem}
+.feat-card-name{font-size:.8rem;font-weight:700;color:var(--tx);margin-bottom:.2rem}
+.feat-card-formula{font-family:var(--mono);font-size:.7rem;color:var(--pri);background:var(--pril);
+  border-radius:6px;padding:3px 8px;display:inline-block;margin-bottom:.4rem}
+.feat-card-desc{font-size:.7rem;color:var(--muted);line-height:1.45}
+.feat-card-value{font-family:var(--mono);font-size:1.1rem;font-weight:800;color:var(--pri);margin-top:.5rem;
+  display:flex;align-items:center;gap:.35rem}
+.feat-value-unit{font-size:.65rem;color:var(--muted);font-weight:500}
+
+/* ============================================================
+   CSV ROW SECTION
+   ============================================================ */
+.csv-comparison{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1rem}
+.csv-panel{border-radius:var(--rl);border:2px solid var(--brd);overflow:hidden}
+.csv-panel-hd{padding:.7rem 1rem;border-bottom:2px solid var(--brd);font-size:.8rem;font-weight:700;
+  display:flex;align-items:center;gap:.4rem;background:var(--surf2)}
+.csv-panel-body{padding:1rem;font-family:var(--mono);font-size:.72rem;overflow-x:auto}
+.csv-row-display{display:flex;flex-wrap:wrap;gap:.3rem}
+.csv-cell{padding:3px 8px;border-radius:6px;border:1.5px solid;font-size:.68rem;font-weight:600}
+.csv-cell-feat{background:var(--pril);border-color:var(--brd2);color:var(--pri)}
+.csv-cell-label{background:var(--greenl);border-color:#86EFAC;color:var(--green)}
+.raw-samples-view{max-height:120px;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:.2rem}
+.raw-sample{font-size:.62rem;color:var(--muted);padding:1px 4px;font-family:var(--mono)}
+.raw-sample:first-child{color:var(--tx);font-weight:600}
+.match-banner{margin-top:1rem;background:linear-gradient(135deg,var(--green),#059669);border-radius:var(--rl);
+  padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;color:#fff;font-weight:700}
+
+/* ============================================================
+   DATASET RECONSTRUCTION
+   ============================================================ */
+.dataset-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;margin-bottom:1.25rem}
+.mat-chip{background:var(--surf2);border:2px solid var(--brd);border-radius:var(--r);padding:.75rem;
+  text-align:center;font-size:.7rem;font-weight:600;transition:all .2s;cursor:default}
+.mat-chip:hover{border-color:var(--pri);background:var(--pril);transform:translateY(-2px)}
+.mat-chip-icon{font-size:1.2rem;margin-bottom:.3rem}
+.mat-chip-name{font-family:var(--mono);font-size:.65rem;color:var(--pri)}
+.mat-chip-rows{font-size:.6rem;color:var(--muted);margin-top:.2rem}
+.fault-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.fault-table th{background:var(--surf2);padding:.55rem .9rem;text-align:left;font-size:.65rem;
+  font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:2px solid var(--brd)}
+.fault-table td{padding:.5rem .9rem;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:.75rem}
+.fault-table tr:hover td{background:var(--pril)}
+.fault-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+.fault-bar-wrap{height:6px;background:var(--brd);border-radius:99px;overflow:hidden;margin-top:3px}
+.fault-bar{height:100%;border-radius:99px}
+
+/* ============================================================
+   ML PIPELINE SECTION
+   ============================================================ */
+.ml-pipeline{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:.5rem}
+.ml-node{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:.5rem;
+  background:var(--surf2);border:2px solid var(--brd);border-radius:var(--rl);
+  padding:1.1rem .9rem;min-width:110px;text-align:center;cursor:pointer;
+  transition:all .25s;position:relative}
+.ml-node:hover,.ml-node.active{border-color:var(--pri);background:var(--pril);box-shadow:var(--shm)}
+.ml-node-icon{font-size:1.6rem}
+.ml-node-name{font-size:.72rem;font-weight:700;color:var(--tx)}
+.ml-node-sub{font-size:.62rem;color:var(--muted);line-height:1.3}
+.ml-arrow{display:flex;align-items:center;flex-shrink:0;padding:0 .25rem;color:var(--pri);font-size:1.1rem;
+  animation:arrowPulse 2s ease-in-out infinite}
+.ml-detail{background:var(--surf2);border:2px solid var(--brd2);border-radius:var(--rl);
+  padding:1.25rem;margin-top:1rem;display:none;animation:fadeUp .3s ease}
+.ml-detail.open{display:block}
+.ml-detail-title{font-size:.88rem;font-weight:700;margin-bottom:.75rem;color:var(--pri);
+  display:flex;align-items:center;gap:.4rem}
+.ml-detail-body{font-size:.8rem;color:var(--muted);line-height:1.6}
+.ml-code{font-family:var(--mono);font-size:.72rem;background:#1E1B4B;color:#A5B4FC;
+  border-radius:var(--r);padding:.85rem 1rem;margin-top:.75rem;overflow-x:auto;white-space:pre}
+
+/* ============================================================
+   LIVE DEMO / PREDICT SECTION
+   ============================================================ */
+.demo-layout{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start}
+.demo-inputs{display:flex;flex-direction:column;gap:.6rem}
+.demo-row{display:grid;grid-template-columns:80px 1fr 90px;align-items:center;gap:.6rem}
+.demo-lbl{font-size:.75rem;font-weight:700;font-family:var(--mono);color:var(--tx)}
+.demo-lbl small{font-size:.6rem;color:var(--muted);display:block;font-family:var(--sans)}
+input[type=range]{width:100%;accent-color:var(--pri);cursor:pointer;height:4px}
+.demo-num{width:100%;padding:.35rem .55rem;border:1.5px solid var(--brd);border-radius:8px;
+  font-size:.75rem;font-family:var(--mono);text-align:right;background:var(--surf2);color:var(--tx)}
+.demo-num:focus{outline:none;border-color:var(--pri)}
+.result-panel{background:var(--surf2);border-radius:var(--rl);border:2px solid var(--brd);overflow:hidden}
+.result-hd{padding:1.1rem;text-align:center;background:linear-gradient(135deg,var(--pril),#E0E7FF);
+  border-bottom:2px solid var(--brd)}
+.result-icon{font-size:2.2rem;margin-bottom:.3rem}
+.result-class{font-size:1.1rem;font-weight:800;color:var(--pri);margin-bottom:.2rem}
+.result-conf{font-size:.78rem;color:var(--muted)}
+.result-conf span{font-size:1.4rem;font-weight:900;font-family:var(--mono);color:var(--pri)}
+.prob-list{padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+.prob-row{display:flex;flex-direction:column;gap:.2rem}
+.prob-name{font-size:.72rem;font-weight:600;color:var(--tx);display:flex;justify-content:space-between}
+.prob-pct{font-family:var(--mono);font-weight:700;color:var(--pri)}
+.prob-bg{height:6px;background:var(--brd);border-radius:99px;overflow:hidden}
+.prob-fill{height:100%;border-radius:99px;background:var(--pri);transition:width .6s ease}
+
+/* ============================================================
+   INFO / CALLOUT BOXES
+   ============================================================ */
+.callout{border-radius:var(--r);padding:.9rem 1.1rem;border-left:4px solid;font-size:.8rem;line-height:1.55}
+.callout-info{background:var(--pril);border-color:var(--pri);color:#3730A3}
+.callout-success{background:var(--greenl);border-color:var(--green);color:#065F46}
+.callout-warn{background:var(--yellowl);border-color:var(--yellow);color:#92400E}
+.callout-cyan{background:var(--cyanl);border-color:var(--cyan);color:#164E63}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:1100px){
+  .hero-stats{grid-template-columns:repeat(3,1fr)}
+  .csv-comparison,.demo-layout{grid-template-columns:1fr}
+  .features-grid{grid-template-columns:repeat(2,1fr)}
+  .dataset-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:768px){
+  :root{--sw:0px}
+  .sidebar{transform:translateX(-100%)}
+  .main-wrap{margin-left:0}
+  .page{padding:1rem}
+  .lab-hero{padding:1.5rem}
+  .lab-hero h1{font-size:1.6rem}
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+  .signal-stats{grid-template-columns:1fr}
+  .explorer-layout{grid-template-columns:1fr}
+  .features-grid{grid-template-columns:1fr}
+  .ml-pipeline{flex-direction:column}
+  .ml-arrow{transform:rotate(90deg)}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR --><script src="../js/sidebar.js"></script>
+
+<!-- MAIN -->
+<div class="main-wrap">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div>
+    <div class="topbar-title">🧪 Signal Laboratory</div>
+    <div class="topbar-crumb">BearingIQ → Signal Laboratory</div>
+  </div>
+  <div class="topbar-right">
+    <div class="top-status"><div class="pulse"></div>Interactive Lab · CWRU Dataset</div>
+    <button class="btn btn-pri btn-sm" onclick="document.getElementById('sec-predict').scrollIntoView({behavior:'smooth'})">🔮 Try Prediction</button>
+  </div>
+</header>
+
+<main class="page">
+
+<!-- ====================================================
+  S0: HERO
+  ==================================================== -->
+<section class="lab-hero anim-fade-up" id="lab-hero">
+  <div class="orb3"></div>
+  <div class="hero-tag">🧪 Interactive CWRU Bearing Laboratory</div>
+  <h1>From Raw Bearing Vibrations<br><span>to Machine Learning</span></h1>
+  <p>Discover how millions of vibration measurements recorded by accelerometers inside a real test rig become the Machine Learning dataset that diagnoses bearing faults with &gt;99% accuracy.</p>
+  <div class="hero-btns">
+    <button class="btn-hp" onclick="document.getElementById('sec-mat').scrollIntoView({behavior:'smooth'})">📂 Open MAT File</button>
+    <button class="btn-ho" onclick="document.getElementById('sec-signal').scrollIntoView({behavior:'smooth'})">📈 Explore Signal</button>
+    <button class="btn-ho" onclick="document.getElementById('sec-dataset').scrollIntoView({behavior:'smooth'})">🤖 Build Dataset</button>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat anim-fade-up d1">
+      <h2 id="stat-khz">48</h2><span>kHz Sampling Rate</span>
+    </div>
+    <div class="hero-stat anim-fade-up d2">
+      <h2 id="stat-samples">487K</h2><span>Measurements / File</span>
+    </div>
+    <div class="hero-stat anim-fade-up d3">
+      <h2>2048</h2><span>Samples / Window</span>
+    </div>
+    <div class="hero-stat anim-fade-up d4">
+      <h2>9</h2><span>Statistical Features</span>
+    </div>
+    <div class="hero-stat anim-fade-up d5">
+      <h2>10</h2><span>Fault Classes</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S1: PIPELINE ANIMATION
+  ==================================================== -->
+<section id="sec-pipeline">
+  <div class="sec-hd">
+    <div class="sec-title">⚙️ From Bearing to Machine Learning</div>
+    <div class="sec-sub">Every step of the data acquisition and processing pipeline — click any step to learn more.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="pipeline-flow" id="pipeline-flow">
+
+        <div class="pipe-step" data-tip="A rolling bearing rotates inside the motor. Inner race, outer race and ball defects produce characteristic vibration patterns.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">🔩</div></div>
+          <div class="pipe-step-content">
+            <h3>Bearing</h3>
+            <p>Rolling element bearing rotates continuously at speed (e.g., 1797 RPM). Any surface defect creates repetitive impacts that generate vibration energy.</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-lab">Hardware</span></div>
+        </div>
+        <div class="pipe-connector"></div>
+
+        <div class="pipe-step" data-tip="Vibrations propagate through the shaft and housing as mechanical waves with frequencies characteristic of each fault type.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">〰️</div></div>
+          <div class="pipe-step-content">
+            <h3>Vibration Propagation</h3>
+            <p>Mechanical vibrations radiate from the defect contact zone through the bearing housing. Fault frequency depends on geometry: BPFO, BPFI, BSF, FTF.</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-new">Physics</span></div>
+        </div>
+        <div class="pipe-connector"></div>
+
+        <div class="pipe-step" data-tip="An accelerometer (ICP-type, 100 mV/g) is mounted on the bearing housing to convert mechanical vibration into electrical signal.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">🎯</div></div>
+          <div class="pipe-step-content">
+            <h3>Accelerometer (ICP)</h3>
+            <p>Piezoelectric sensor mounted at Drive-End (DE), Fan-End (FE), or Base (BA) position. Converts acceleration → voltage. Sensitivity: 100 mV/g.</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-lab">Sensor</span></div>
+        </div>
+        <div class="pipe-connector"></div>
+
+        <div class="pipe-step" data-tip="A National Instruments 16-channel DAQ board samples the analog signal at 48,000 samples per second and stores it digitally.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">💽</div></div>
+          <div class="pipe-step-content">
+            <h3>DAQ Board (48 kHz)</h3>
+            <p>National Instruments data acquisition hardware samples the analog voltage at <strong>48,000 Hz</strong>. Each sample is stored as a floating-point value in g (gravitational acceleration).</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-new">Electronics</span></div>
+        </div>
+        <div class="pipe-connector"></div>
+
+        <div class="pipe-step" data-tip="MATLAB saves each ~10 second recording as a .mat file containing arrays like X123_DE_time with 487,384 values.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">📦</div></div>
+          <div class="pipe-step-content">
+            <h3>MAT File Storage</h3>
+            <p>MATLAB saves the recording as a <code style="font-family:var(--mono);font-size:.75rem;background:var(--pril);padding:2px 5px;border-radius:4px">.mat</code> binary file. Variables like <code style="font-family:var(--mono);font-size:.75rem;background:var(--pril);padding:2px 5px;border-radius:4px">X123_DE_time</code> store arrays of shape <strong>(487384, 1)</strong>.</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-lab">File</span></div>
+        </div>
+        <div class="pipe-connector"></div>
+
+        <div class="pipe-step" data-tip="Signal is divided into 2048-sample windows. Each window is transformed into 9 statistical features: max, min, mean, std, rms, skewness, kurtosis, crest factor, form factor.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">🧮</div></div>
+          <div class="pipe-step-content">
+            <h3>Feature Extraction</h3>
+            <p>Signal is segmented into <strong>2048-sample windows</strong>. Each window → 9 statistical descriptors. 487,384 samples ÷ 2048 ≈ <strong>237 windows</strong> per file.</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-new">Processing</span></div>
+        </div>
+        <div class="pipe-connector"></div>
+
+        <div class="pipe-step" data-tip="Each window becomes one row in the CSV dataset. Rows from all files are combined into a dataset of ~2,300 samples used to train ML classifiers.">
+          <div class="pipe-icon-wrap"><div class="pipe-step-icon">🤖</div></div>
+          <div class="pipe-step-content">
+            <h3>Machine Learning</h3>
+            <p>CSV dataset feeds <strong>Random Forest</strong> and <strong>SVM</strong> classifiers. After StandardScaler normalization, models achieve &gt;99% accuracy on 10 fault classes.</p>
+          </div>
+          <div class="pipe-step-badge"><span class="badge badge-normal">ML</span></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S2: MAT FILE EXPLORER
+  ==================================================== -->
+<section id="sec-mat">
+  <div class="sec-hd">
+    <div class="sec-title">📂 MAT File Explorer</div>
+    <div class="sec-sub">Click any file to inspect its variables. Click any variable to expand its full description.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="explorer-layout">
+
+        <!-- File Tree -->
+        <div class="file-tree">
+          <div class="file-tree-hd">📁 raw /</div>
+          <div class="folder-item" style="font-size:.75rem;color:var(--muted)">10 .mat files</div>
+
+          <div class="mat-file selected" data-file="normal" onclick="selectFile(this,'normal')">
+            <span>📄</span> Normal_1_0.mat
+          </div>
+          <div class="mat-file" data-file="b007" onclick="selectFile(this,'b007')">
+            <span>📄</span> B007_1_123.mat
+          </div>
+          <div class="mat-file" data-file="b014" onclick="selectFile(this,'b014')">
+            <span>📄</span> B014_1_172.mat
+          </div>
+          <div class="mat-file" data-file="b021" onclick="selectFile(this,'b021')">
+            <span>📄</span> B021_1_222.mat
+          </div>
+          <div class="mat-file" data-file="ir007" onclick="selectFile(this,'ir007')">
+            <span>📄</span> IR007_1_109.mat
+          </div>
+          <div class="mat-file" data-file="ir014" onclick="selectFile(this,'ir014')">
+            <span>📄</span> IR014_1_175.mat
+          </div>
+          <div class="mat-file" data-file="ir021" onclick="selectFile(this,'ir021')">
+            <span>📄</span> IR021_1_209.mat
+          </div>
+          <div class="mat-file" data-file="or007" onclick="selectFile(this,'or007')">
+            <span>📄</span> OR007_6_1_130.mat
+          </div>
+          <div class="mat-file" data-file="or014" onclick="selectFile(this,'or014')">
+            <span>📄</span> OR014_6_1_197.mat
+          </div>
+          <div class="mat-file" data-file="or021" onclick="selectFile(this,'or021')">
+            <span>📄</span> OR021_6_1_239.mat
+          </div>
+        </div>
+
+        <!-- Variable Preview -->
+        <div class="mat-preview" id="mat-preview">
+          <div class="mat-preview-hd" id="mat-file-title">📄 Normal_1_0.mat — Variables</div>
+
+          <div class="variable-item">
+            <div class="variable-header" onclick="toggleVar(this)">
+              <span>🔢 X097_DE_time</span>
+              <span class="variable-toggle">▼</span>
+            </div>
+            <div class="variable-body">
+              <div class="variable-body-inner">
+                <div class="var-prop"><span class="var-key">Shape</span><span class="var-val">(487384, 1)</span></div>
+                <div class="var-prop"><span class="var-key">Type</span><span class="var-val">float64</span></div>
+                <div class="var-prop"><span class="var-key">Sensor</span><span class="var-val">Drive-End (DE)</span></div>
+                <div class="var-prop"><span class="var-key">Unit</span><span class="var-val">g (m/s²÷9.81)</span></div>
+                <div class="var-prop"><span class="var-key">Sampling</span><span class="var-val">48,000 Hz</span></div>
+                <div class="var-desc">Drive-End accelerometer signal. Each value is one instantaneous acceleration measurement taken every 1/48000 = 20.83 μs.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="variable-item">
+            <div class="variable-header" onclick="toggleVar(this)">
+              <span>🔢 X097_FE_time</span>
+              <span class="variable-toggle">▼</span>
+            </div>
+            <div class="variable-body">
+              <div class="variable-body-inner">
+                <div class="var-prop"><span class="var-key">Shape</span><span class="var-val">(487384, 1)</span></div>
+                <div class="var-prop"><span class="var-key">Type</span><span class="var-val">float64</span></div>
+                <div class="var-prop"><span class="var-key">Sensor</span><span class="var-val">Fan-End (FE)</span></div>
+                <div class="var-prop"><span class="var-key">Unit</span><span class="var-val">g (m/s²÷9.81)</span></div>
+                <div class="var-desc">Fan-End accelerometer signal, located on the opposite side of the motor from the Drive-End bearing.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="variable-item">
+            <div class="variable-header" onclick="toggleVar(this)">
+              <span>⚡ X097RPM</span>
+              <span class="variable-toggle">▼</span>
+            </div>
+            <div class="variable-body">
+              <div class="variable-body-inner">
+                <div class="var-prop"><span class="var-key">Value</span><span class="var-val" id="mat-rpm">1797</span></div>
+                <div class="var-prop"><span class="var-key">Type</span><span class="var-val">int16</span></div>
+                <div class="var-desc">Motor shaft rotational speed in RPM. Normal speed = 1797 RPM under no-load conditions. Used to compute theoretical fault frequencies.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S3: SIGNAL EXPLANATION
+  ==================================================== -->
+<section id="sec-signal">
+  <div class="sec-hd">
+    <div class="sec-title">📊 Understanding X123_DE_time</div>
+    <div class="sec-sub">What the numbers inside a MAT variable actually mean.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="signal-stats">
+        <div class="sig-stat" style="--sc:var(--pri)">
+          <div class="sig-stat-val">487,384</div>
+          <div class="sig-stat-lbl">Acceleration Measurements</div>
+          <div class="sig-stat-sub">shape: (487384, 1)</div>
+        </div>
+        <div class="sig-stat" style="--sc:var(--cyan)">
+          <div class="sig-stat-val">48,000 Hz</div>
+          <div class="sig-stat-lbl">Sampling Frequency</div>
+          <div class="sig-stat-sub">samples per second</div>
+        </div>
+        <div class="sig-stat" style="--sc:var(--green)">
+          <div class="sig-stat-val">≈ 10.15 s</div>
+          <div class="sig-stat-lbl">Recording Duration</div>
+          <div class="sig-stat-sub">487384 ÷ 48000</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1rem">
+        <div>
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:.75rem">What each value represents</h3>
+          <p style="font-size:.8rem;color:var(--muted);line-height:1.6;margin-bottom:.75rem">
+            Each number in <code style="font-family:var(--mono);font-size:.75rem;background:var(--pril);padding:2px 5px;border-radius:4px">X123_DE_time</code> is one <strong>instantaneous acceleration measurement</strong> expressed in <strong>g</strong> (gravitational acceleration units, where 1 g = 9.81 m/s²).
+          </p>
+          <p style="font-size:.8rem;color:var(--muted);line-height:1.6;margin-bottom:.75rem">
+            Positive values → bearing accelerating in one direction.<br>
+            Negative values → bearing accelerating in the opposite direction.<br>
+            Near-zero values → momentary low vibration.
+          </p>
+          <div class="callout callout-info" style="margin-top:.75rem">
+            💡 A healthy bearing produces smooth sinusoidal vibration. A damaged bearing generates <strong>sudden high-amplitude spikes</strong> at the fault frequency.
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:.75rem">Time step formula</h3>
+          <div style="display:flex;flex-direction:column;gap:.6rem">
+            <div class="formula-box">Δt = 1 / f<sub>s</sub> = 1 / 48,000</div>
+            <div class="formula-box">Δt = 20.833 μs</div>
+            <div class="formula-box">t[n] = n × Δt = n / 48000</div>
+          </div>
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem;line-height:1.55">
+            Every measurement is separated by exactly <strong>20.83 microseconds</strong>. The array index <code style="font-family:var(--mono)">n</code> maps to absolute time via the formula above.
+          </p>
+          <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+            <span class="badge badge-normal">✓ 487,384 values</span>
+            <span class="badge badge-lab">float64 precision</span>
+            <span class="badge badge-new">~10.15 seconds</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S4: TIME DOMAIN TABLE
+  ==================================================== -->
+<section id="sec-table">
+  <div class="sec-hd">
+    <div class="sec-title">⏱ Time Domain Samples</div>
+    <div class="sec-sub">Converting array indices to physical time using t = n / 48000. Scroll to see more samples.</div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">📋 First 20 Samples — Drive-End Signal</div>
+      <div style="display:flex;gap:.5rem">
+        <span class="badge badge-lab">t = n / 48000</span>
+        <button class="btn btn-ghost btn-sm" onclick="copyTable()">📋 Copy</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:.75rem">
+      <div class="time-table-wrap">
+        <table class="time-table" id="time-table">
+          <thead><tr>
+            <th>Sample n</th>
+            <th>Time (s)</th>
+            <th>Time (μs)</th>
+            <th>Acceleration (g)</th>
+            <th>Direction</th>
+          </tr></thead>
+          <tbody id="time-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:.75rem;display:flex;gap:1.5rem;font-size:.72rem;color:var(--muted)">
+        <span>🟢 Positive = upward/forward acceleration</span>
+        <span>🔴 Negative = opposing acceleration</span>
+        <span style="font-family:var(--mono)">Δt = 20.833 μs between samples</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S5: SIGNAL VISUALIZATION
+  ==================================================== -->
+<section id="sec-viz">
+  <div class="sec-hd">
+    <div class="sec-title">📈 Vibration Signal Visualization</div>
+    <div class="sec-sub">Interactive Chart.js plot of real-like CWRU bearing vibration data. Hover for values.</div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">📉 Drive-End Accelerometer Signal</div>
+      <div class="chart-controls">
+        <button class="chart-btn active" onclick="setSignalView('normal',this)">Normal Bearing</button>
+        <button class="chart-btn" onclick="setSignalView('ball',this)">Ball Fault</button>
+        <button class="chart-btn" onclick="setSignalView('inner',this)">Inner Race</button>
+        <button class="chart-btn" onclick="setSignalView('outer',this)">Outer Race</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="setZoom('full')">Full Signal</button>
+        <button class="btn btn-pri btn-sm" onclick="setZoom('window')">First 2048 Samples</button>
+        <button class="btn btn-ghost btn-sm" onclick="setZoom('zoom')">Fault Region</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="signalChart"></canvas>
+      </div>
+      <div class="chart-meta">
+        <div class="chart-meta-item"><div class="chart-meta-dot" style="background:var(--pri)"></div>Acceleration (g)</div>
+        <div class="chart-meta-item"><div class="chart-meta-dot" style="background:var(--cyan)"></div>Window boundary</div>
+        <div class="chart-meta-item" id="chart-stat-rms" style="font-family:var(--mono)">RMS: —</div>
+        <div class="chart-meta-item" id="chart-stat-peak" style="font-family:var(--mono)">Peak: —</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S6: WINDOWING
+  ==================================================== -->
+<section id="sec-window">
+  <div class="sec-hd">
+    <div class="sec-title">🔲 Signal Windowing</div>
+    <div class="sec-sub">The signal is segmented into non-overlapping 2048-sample windows. Each window = one training example.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="window-vis">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <span style="font-size:.82rem;font-weight:700">Signal: 487,384 samples → 237 windows</span>
+          <span class="badge badge-lab">Window size: 2048</span>
+        </div>
+        <div class="window-track">
+          <div class="window-highlight" id="win-highlight" style="left:0%"></div>
+          <div class="window-track-signal">——— 487,384 samples ———</div>
+        </div>
+        <div class="window-controls">
+          <button class="btn btn-pri btn-sm" onclick="prevWindow()">◀ Prev</button>
+          <span class="window-label" id="win-label">Window 1 · Samples 0 → 2047</span>
+          <button class="btn btn-pri btn-sm" onclick="nextWindow()">Next ▶</button>
+          <span class="arrow-anim">→</span>
+          <button class="btn btn-cyan btn-sm" onclick="extractWindow()">✂ Extract Window</button>
+        </div>
+        <div class="window-boxes" id="win-boxes">
+          <div class="win-box active" id="wb-0">Win 1<br><small style="font-size:.6rem">0→2047</small></div>
+          <div class="win-box" id="wb-1">Win 2<br><small style="font-size:.6rem">2048→4095</small></div>
+          <div class="win-box" id="wb-2">Win 3<br><small style="font-size:.6rem">4096→6143</small></div>
+          <div class="win-box" id="wb-3">Win 4<br><small style="font-size:.6rem">6144→8191</small></div>
+          <div class="win-box" style="color:var(--muted)">· · ·</div>
+          <div class="win-box" id="wb-236">Win 237<br><small style="font-size:.6rem">484352→486399</small></div>
+        </div>
+      </div>
+
+      <div class="callout callout-info" style="margin-top:1rem">
+        <strong>Why 2048 samples?</strong> — 2048 = 2¹¹, a power of 2 that is efficient for FFT computation and contains ~42.67 ms of signal at 48 kHz, capturing multiple fault-frequency cycles even for the lowest fault frequency (~162 Hz outer race fault).
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S7: FEATURE EXTRACTION
+  ==================================================== -->
+<section id="sec-features">
+  <div class="sec-hd">
+    <div class="sec-title">🧮 Feature Extraction</div>
+    <div class="sec-sub">Each 2048-sample window is compressed into 9 statistical descriptors that capture the essential vibration characteristics.</div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">📐 9 Statistical Features — Window 1</div>
+      <button class="btn btn-pri btn-sm" onclick="computeFeatures()">⚡ Compute Features</button>
+    </div>
+    <div class="card-body">
+      <div class="features-grid">
+
+        <div class="feat-card" id="fc-max">
+          <div class="feat-card-icon">⬆️</div>
+          <div class="feat-card-name">Maximum</div>
+          <div class="feat-card-formula">max(x)</div>
+          <div class="feat-card-desc">Largest positive vibration peak in the window. High maximum → large impact spike.</div>
+          <div class="feat-card-value" id="fv-max">—<span class="feat-value-unit">g</span></div>
+        </div>
+
+        <div class="feat-card" id="fc-min">
+          <div class="feat-card-icon">⬇️</div>
+          <div class="feat-card-name">Minimum</div>
+          <div class="feat-card-formula">min(x)</div>
+          <div class="feat-card-desc">Largest negative vibration peak. Together with max, shows peak-to-peak range.</div>
+          <div class="feat-card-value" id="fv-min">—<span class="feat-value-unit">g</span></div>
+        </div>
+
+        <div class="feat-card" id="fc-mean">
+          <div class="feat-card-icon">📊</div>
+          <div class="feat-card-name">Mean</div>
+          <div class="feat-card-formula">Σx / N</div>
+          <div class="feat-card-desc">Average acceleration over the window. Near-zero for balanced bearings; offset indicates DC bias or sensor tilt.</div>
+          <div class="feat-card-value" id="fv-mean">—<span class="feat-value-unit">g</span></div>
+        </div>
+
+        <div class="feat-card" id="fc-std">
+          <div class="feat-card-icon">📉</div>
+          <div class="feat-card-name">Std Dev (σ)</div>
+          <div class="feat-card-formula">√(Σ(x-μ)²/N)</div>
+          <div class="feat-card-desc">Standard deviation — measures signal dispersion. Higher σ indicates more energetic vibration.</div>
+          <div class="feat-card-value" id="fv-std">—<span class="feat-value-unit">g</span></div>
+        </div>
+
+        <div class="feat-card" id="fc-rms">
+          <div class="feat-card-icon">⚡</div>
+          <div class="feat-card-name">RMS</div>
+          <div class="feat-card-formula">√(Σx²/N)</div>
+          <div class="feat-card-desc">Root Mean Square — total vibration energy. Directly related to heating and wear. Most widely used bearing health indicator.</div>
+          <div class="feat-card-value" id="fv-rms">—<span class="feat-value-unit">g</span></div>
+        </div>
+
+        <div class="feat-card" id="fc-skew">
+          <div class="feat-card-icon">↗️</div>
+          <div class="feat-card-name">Skewness</div>
+          <div class="feat-card-formula">E[(x-μ)³]/σ³</div>
+          <div class="feat-card-desc">Asymmetry of the signal distribution. Healthy bearings: skewness ≈ 0. Faults can introduce directional impacts.</div>
+          <div class="feat-card-value" id="fv-skew">—</div>
+        </div>
+
+        <div class="feat-card" id="fc-kurt">
+          <div class="feat-card-icon">🔺</div>
+          <div class="feat-card-name">Kurtosis</div>
+          <div class="feat-card-formula">E[(x-μ)⁴]/σ⁴</div>
+          <div class="feat-card-desc">Impulsiveness measure. Normal signal kurtosis ≈ 3. Bearing faults generate spikes → kurtosis &gt; 3. Key fault indicator.</div>
+          <div class="feat-card-value" id="fv-kurt">—</div>
+        </div>
+
+        <div class="feat-card" id="fc-crest">
+          <div class="feat-card-icon">🏔️</div>
+          <div class="feat-card-name">Crest Factor</div>
+          <div class="feat-card-formula">|max(x)| / RMS</div>
+          <div class="feat-card-desc">Ratio of peak to RMS. Indicates the presence of shock impacts. Early-stage faults show high crest factor before RMS rises.</div>
+          <div class="feat-card-value" id="fv-crest">—</div>
+        </div>
+
+        <div class="feat-card" id="fc-form">
+          <div class="feat-card-icon">📐</div>
+          <div class="feat-card-name">Form Factor</div>
+          <div class="feat-card-formula">RMS / Mean|x|</div>
+          <div class="feat-card-desc">Ratio of RMS to mean absolute value. Characterizes the waveform shape. Pure sine = 1.11; spiky signals differ significantly.</div>
+          <div class="feat-card-value" id="fv-form">—</div>
+        </div>
+
+      </div>
+
+      <div class="callout callout-success" style="margin-top:1.25rem" id="feat-callout" style="display:none">
+        ✅ <strong>Feature computation complete!</strong> These 9 numbers represent the entire 2048-sample window. They will become exactly one row in the CSV dataset.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S8: CSV ROW GENERATION
+  ==================================================== -->
+<section id="sec-csv">
+  <div class="sec-hd">
+    <div class="sec-title">📋 CSV Row Generation</div>
+    <div class="sec-sub">One 2048-sample window becomes exactly one row in the Kaggle-compatible CSV dataset.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <div style="text-align:center;background:var(--surf2);border:2px solid var(--brd);border-radius:var(--r);padding:.85rem 1.25rem">
+          <div style="font-size:1.4rem;font-weight:800;font-family:var(--mono);color:var(--pri)">2048</div>
+          <div style="font-size:.68rem;color:var(--muted)">Raw Samples</div>
+        </div>
+        <div style="font-size:1.5rem;color:var(--pri);font-weight:700">→</div>
+        <div style="text-align:center;background:var(--pril);border:2px solid var(--pri);border-radius:var(--r);padding:.85rem 1.25rem">
+          <div style="font-size:1.4rem;font-weight:800;font-family:var(--mono);color:var(--pri)">9</div>
+          <div style="font-size:.68rem;color:var(--pri)">Features</div>
+        </div>
+        <div style="font-size:1.5rem;color:var(--pri);font-weight:700">+</div>
+        <div style="text-align:center;background:var(--greenl);border:2px solid var(--green);border-radius:var(--r);padding:.85rem 1.25rem">
+          <div style="font-size:1.4rem;font-weight:800;font-family:var(--mono);color:var(--green)">1</div>
+          <div style="font-size:.68rem;color:var(--green)">Label</div>
+        </div>
+        <div style="font-size:1.5rem;color:var(--pri);font-weight:700">=</div>
+        <div style="text-align:center;background:var(--surf2);border:2px solid var(--brd);border-radius:var(--r);padding:.85rem 1.25rem">
+          <div style="font-size:.9rem;font-weight:800;font-family:var(--mono);color:var(--tx)">1 CSV Row</div>
+          <div style="font-size:.68rem;color:var(--muted)">Dataset entry</div>
+        </div>
+      </div>
+
+      <div class="csv-comparison">
+        <div class="csv-panel">
+          <div class="csv-panel-hd" style="background:var(--surf2)">📦 Raw Window Data (2048 samples)</div>
+          <div class="csv-panel-body">
+            <div class="raw-samples-view" id="raw-samples-view"></div>
+          </div>
+        </div>
+        <div class="csv-panel">
+          <div class="csv-panel-hd" style="background:var(--pril)">📄 Kaggle CSV Row (10 columns)</div>
+          <div class="csv-panel-body">
+            <div class="csv-row-display" id="csv-row-display">
+              <span class="csv-cell csv-cell-feat" id="csv-max">max: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-min">min: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-mean">mean: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-sd">sd: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-rms">rms: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-skew">skew: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-kurt">kurt: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-crest">crest: —</span>
+              <span class="csv-cell csv-cell-feat" id="csv-form">form: —</span>
+              <span class="csv-cell csv-cell-label" id="csv-fault">fault: Normal_1</span>
+            </div>
+            <div style="margin-top:.75rem;font-size:.68rem;color:var(--muted)">
+              Exactly matches Bearing.csv format used by BearingIQ ML engine
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="match-banner" id="match-banner" style="display:none">
+        <span style="font-size:1.5rem">🎉</span>
+        <div>
+          <div>Perfect Match with Kaggle Dataset!</div>
+          <div style="font-size:.78rem;font-weight:400;opacity:.9">Our preprocessing exactly reproduces the official CWRU Bearing.csv format.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button class="btn btn-pri" onclick="generateCSVRow()">⚡ Generate CSV Row</button>
+        <button class="btn btn-ghost" onclick="copyCSVRow()">📋 Copy Row</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S9: DATASET RECONSTRUCTION
+  ==================================================== -->
+<section id="sec-dataset">
+  <div class="sec-hd">
+    <div class="sec-title">🗂 Dataset Reconstruction</div>
+    <div class="sec-sub">10 MAT files × multiple windows → the complete Kaggle bearing dataset CSV.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+
+      <div class="dataset-grid">
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">Normal_1_0</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge badge-normal" style="font-size:.55rem">Normal</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">B007_1_123</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge badge-new" style="font-size:.55rem">Ball 0.007"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">B014_1_172</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge badge-new" style="font-size:.55rem">Ball 0.014"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">B021_1_222</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge badge-new" style="font-size:.55rem">Ball 0.021"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">IR007_1_109</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge" style="background:#EDE9FE;color:#7C3AED;border-color:#C4B5FD;font-size:.55rem">IR 0.007"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">IR014_1_175</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge" style="background:#EDE9FE;color:#7C3AED;border-color:#C4B5FD;font-size:.55rem">IR 0.014"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">IR021_1_209</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge" style="background:#EDE9FE;color:#7C3AED;border-color:#C4B5FD;font-size:.55rem">IR 0.021"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">OR007_6_1</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge" style="background:#DBEAFE;color:#2563EB;border-color:#93C5FD;font-size:.55rem">OR 0.007"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">OR014_6_1</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge" style="background:#DBEAFE;color:#2563EB;border-color:#93C5FD;font-size:.55rem">OR 0.014"</span></div>
+        </div>
+        <div class="mat-chip">
+          <div class="mat-chip-icon">📄</div>
+          <div class="mat-chip-name">OR021_6_1</div>
+          <div class="mat-chip-rows">237 windows</div>
+          <div style="margin-top:.3rem"><span class="badge" style="background:#DBEAFE;color:#2563EB;border-color:#93C5FD;font-size:.55rem">OR 0.021"</span></div>
+        </div>
+      </div>
+
+      <div style="text-align:center;padding:1rem;background:linear-gradient(135deg,var(--pri),#7C3AED);border-radius:var(--rl);color:#fff;margin-bottom:1.25rem">
+        <div style="font-size:.7rem;font-weight:600;opacity:.8;letter-spacing:.5px;margin-bottom:.3rem">TOTAL DATASET</div>
+        <div style="font-size:2rem;font-weight:900;letter-spacing:-1px">10 files × 237 windows = 2,370 rows</div>
+        <div style="font-size:.8rem;opacity:.85;margin-top:.3rem">Bearing.csv — 10 columns (9 features + fault label)</div>
+      </div>
+
+      <table class="fault-table">
+        <thead><tr>
+          <th>Fault Type</th><th>Files</th><th>Windows</th><th>Label Code</th><th>Distribution</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="fault-dot" style="background:#10B981"></span>Normal</td>
+            <td>1</td><td style="font-family:var(--mono)">237</td><td style="font-family:var(--mono);color:var(--green)">Normal_1</td>
+            <td><div class="fault-bar-wrap"><div class="fault-bar" style="width:10%;background:#10B981"></div></div></td>
+          </tr>
+          <tr>
+            <td><span class="fault-dot" style="background:#F59E0B"></span>Ball Fault</td>
+            <td>3</td><td style="font-family:var(--mono)">711</td><td style="font-family:var(--mono);color:var(--yellow)">Ball_007/014/021</td>
+            <td><div class="fault-bar-wrap"><div class="fault-bar" style="width:30%;background:#F59E0B"></div></div></td>
+          </tr>
+          <tr>
+            <td><span class="fault-dot" style="background:#8B5CF6"></span>Inner Race</td>
+            <td>3</td><td style="font-family:var(--mono)">711</td><td style="font-family:var(--mono);color:var(--violet)">IR_007/014/021</td>
+            <td><div class="fault-bar-wrap"><div class="fault-bar" style="width:30%;background:#8B5CF6"></div></div></td>
+          </tr>
+          <tr>
+            <td><span class="fault-dot" style="background:#3B82F6"></span>Outer Race</td>
+            <td>3</td><td style="font-family:var(--mono)">711</td><td style="font-family:var(--mono);color:var(--blue)">OR_007/014/021</td>
+            <td><div class="fault-bar-wrap"><div class="fault-bar" style="width:30%;background:#3B82F6"></div></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  S10: ML PIPELINE
+  ==================================================== -->
+<section id="sec-ml">
+  <div class="sec-hd">
+    <div class="sec-title">🤖 Machine Learning Pipeline</div>
+    <div class="sec-sub">Click any step to see exactly how the data flows through the ML pipeline.</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+
+      <div class="ml-pipeline" id="ml-pipeline">
+        <div class="ml-node" onclick="showMLDetail('csv')" id="ml-csv">
+          <div class="ml-node-icon">📄</div>
+          <div class="ml-node-name">CSV Dataset</div>
+          <div class="ml-node-sub">Bearing.csv<br>2370 rows</div>
+        </div>
+        <div class="ml-arrow">→</div>
+        <div class="ml-node" onclick="showMLDetail('split')" id="ml-split">
+          <div class="ml-node-icon">✂️</div>
+          <div class="ml-node-name">Train/Test Split</div>
+          <div class="ml-node-sub">80% / 20%<br>Stratified</div>
+        </div>
+        <div class="ml-arrow">→</div>
+        <div class="ml-node" onclick="showMLDetail('scale')" id="ml-scale">
+          <div class="ml-node-icon">⚖️</div>
+          <div class="ml-node-name">StandardScaler</div>
+          <div class="ml-node-sub">μ=0, σ=1<br>per feature</div>
+        </div>
+        <div class="ml-arrow">→</div>
+        <div class="ml-node" onclick="showMLDetail('rf')" id="ml-rf">
+          <div class="ml-node-icon">🌲</div>
+          <div class="ml-node-name">Random Forest</div>
+          <div class="ml-node-sub">100 trees<br>Gini impurity</div>
+        </div>
+        <div class="ml-arrow">→</div>
+        <div class="ml-node" onclick="showMLDetail('svm')" id="ml-svm">
+          <div class="ml-node-icon">🔷</div>
+          <div class="ml-node-name">SVM</div>
+          <div class="ml-node-sub">RBF kernel<br>C=10</div>
+        </div>
+        <div class="ml-arrow">→</div>
+        <div class="ml-node" onclick="showMLDetail('pred')" id="ml-pred">
+          <div class="ml-node-icon">🎯</div>
+          <div class="ml-node-name">Prediction</div>
+          <div class="ml-node-sub">&gt;99% accuracy<br>10 classes</div>
+        </div>
+      </div>
+
+      <div class="ml-detail" id="ml-detail-csv">
+        <div class="ml-detail-title">📄 CSV Dataset — Bearing.csv</div>
+        <div class="ml-detail-body">
+          The dataset contains <strong>2,370 rows × 10 columns</strong>. Each row represents one 2048-sample window extracted from the raw MAT files. The 9 feature columns are: max, min, mean, sd, rms, skewness, kurtosis, crest factor, form factor. The 10th column is the fault label.
+        </div>
+        <div class="ml-code">import pandas as pd
+df = pd.read_csv('Bearing.csv')
+X = df[['max','min','mean','sd','rms','skewness','kurtosis','crest','form']].values
+y = df['fault'].values
+print(X.shape)    # (2370, 9)
+print(y.shape)    # (2370,)</div>
+      </div>
+
+      <div class="ml-detail" id="ml-detail-split">
+        <div class="ml-detail-title">✂️ Stratified Train/Test Split</div>
+        <div class="ml-detail-body">
+          We use <strong>stratified splitting</strong> (80/20) to ensure each fault class is proportionally represented in both train and test sets. This prevents bias from imbalanced splits.
+        </div>
+        <div class="ml-code">from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+# X_train: (1896, 9)   X_test: (474, 9)</div>
+      </div>
+
+      <div class="ml-detail" id="ml-detail-scale">
+        <div class="ml-detail-title">⚖️ StandardScaler Normalization</div>
+        <div class="ml-detail-body">
+          Features have very different scales (e.g., kurtosis can be 3–50, while mean is near 0). StandardScaler transforms each feature to have <strong>mean = 0</strong> and <strong>standard deviation = 1</strong> using only training set statistics. This prevents high-variance features from dominating.
+        </div>
+        <div class="ml-code">from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)  # Learn μ,σ from train
+X_test_scaled  = scaler.transform(X_test)       # Apply same transform
+# z = (x - μ) / σ  for each feature independently</div>
+      </div>
+
+      <div class="ml-detail" id="ml-detail-rf">
+        <div class="ml-detail-title">🌲 Random Forest Classifier</div>
+        <div class="ml-detail-body">
+          An ensemble of <strong>100 decision trees</strong>, each trained on a random bootstrap sample of the data. Each tree votes for a class; the majority vote wins. Feature importance is computed as the average reduction in Gini impurity across all trees. Highly robust to outliers and naturally handles multi-class problems.
+        </div>
+        <div class="ml-code">from sklearn.ensemble import RandomForestClassifier
+rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+rf.fit(X_train_scaled, y_train)
+y_pred = rf.predict(X_test_scaled)
+# Accuracy: ~94.1%  |  F1-score: ~0.941</div>
+      </div>
+
+      <div class="ml-detail" id="ml-detail-svm">
+        <div class="ml-detail-title">🔷 Support Vector Machine (SVM)</div>
+        <div class="ml-detail-body">
+          SVM with <strong>RBF kernel</strong> finds the maximum-margin hyperplane separating 10 classes using one-vs-one strategy. The kernel trick maps 9D features into a higher-dimensional space where classes become linearly separable. C=10 allows some misclassifications for better generalization.
+        </div>
+        <div class="ml-code">from sklearn.svm import SVC
+svm = SVC(kernel='rbf', C=10, gamma='scale', probability=True)
+svm.fit(X_train_scaled, y_train)
+y_pred_svm = svm.predict(X_test_scaled)
+# Accuracy: ~92.2%  |  F1-score: ~0.922</div>
+      </div>
+
+      <div class="ml-detail" id="ml-detail-pred">
+        <div class="ml-detail-title">🎯 Prediction Flow</div>
+        <div class="ml-detail-body">
+          When a new vibration signal arrives: (1) extract 2048-sample window, (2) compute 9 features, (3) apply saved StandardScaler transform, (4) feed to trained classifier, (5) get class probabilities and predicted fault type.
+        </div>
+        <div class="ml-code">def predict_bearing(signal_window):
+    features = extract_features(signal_window)  # 9 features
+    features_scaled = scaler.transform([features])
+    pred_class = rf.predict(features_scaled)[0]
+    pred_proba = rf.predict_proba(features_scaled)[0]
+    confidence = max(pred_proba)
+    return pred_class, confidence
+# Example: 'Ball_007_1'  confidence: 0.98</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+  CONFUSION MATRIX SECTION
+  ==================================================== -->
+<section style="margin-top:2rem">
+  <div style="margin-bottom:1.5rem">
+    <div class="sec-title">🎯 Model Evaluation: Confusion Matrix</div>
+    <div class="sec-sub">Understand how well the models perform and where they make mistakes across the 10 fault classes (Test Set: 474 samples).</div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card-title">Confusion Matrix Analysis</div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-sm btn-pri" id="btn-cm-rf" onclick="renderCM('rf')">🌲 Random Forest (94%)</button>
+        <button class="btn btn-sm btn-ghost" id="btn-cm-svm" onclick="renderCM('svm')">🔷 SVM (92%)</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:2rem">
+        <!-- Explanation -->
+        <div>
+          <div style="background:var(--surf2);padding:1.25rem;border-radius:var(--rm);border:1px solid var(--brd)">
+            <h3 style="font-size:.9rem;font-weight:800;margin-bottom:.75rem">How to read this matrix</h3>
+            <p style="font-size:.78rem;color:var(--muted);line-height:1.6;margin-bottom:1rem">
+              A confusion matrix compares the <strong>Actual</strong> (True) fault classes against what the model <strong>Predicted</strong>.
+            </p>
+            <ul style="font-size:.78rem;color:var(--muted);line-height:1.6;padding-left:1.25rem;margin-bottom:1rem">
+              <li><strong>Rows</strong> represent the actual fault in the machine.</li>
+              <li><strong>Columns</strong> represent what the AI predicted.</li>
+              <li><strong style="color:var(--green)">The Diagonal:</strong> Numbers on the main diagonal (dark green) are correct predictions.</li>
+              <li><strong style="color:var(--red)">Off-Diagonal:</strong> Any number outside the diagonal (red) is a misclassification (error).</li>
+            </ul>
+            <div id="cm-stats" style="font-size:.8rem;font-weight:700;padding:1rem;background:var(--surf);border-radius:8px;border:1px solid var(--brd2)">
+              <!-- Filled by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Matrix -->
+        <div style="overflow-x:auto">
+          <table class="cm-table" id="cm-table">
+            <!-- Filled by JS -->
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .cm-table { width:100%; border-collapse:collapse; font-size:.7rem; text-align:center; font-family:var(--mono); }
+    .cm-table th { padding:.5rem; font-weight:700; color:var(--text); }
+    .cm-table td { padding:.5rem; border:1px solid var(--brd); transition:all .2s; }
+    .cm-table .cm-cell-correct { background:rgba(16,185,129,0.8); color:#fff; font-weight:900; }
+    .cm-table .cm-cell-error { background:rgba(239,68,68,0.7); color:#fff; font-weight:900; }
+    .cm-table .cm-cell-zero { color:var(--muted); opacity:0.3; }
+    .cm-table .cm-axis-y { font-weight:700; text-align:right; padding-right:1rem; color:var(--muted); }
+    .cm-table .cm-axis-x { font-weight:700; padding-bottom:1rem; color:var(--muted); border-bottom:2px solid var(--brd); }
+    .cm-table td:hover { filter:brightness(1.2); }
+  </style>
+</section>
+
+<!-- ====================================================
+  FOOTER CALLOUT
+  ==================================================== -->
+<div class="callout callout-success" style="margin-top:1rem">
+  🎓 <strong>Lab Complete!</strong> You've followed the full pipeline: MAT files → vibration signal → windowing → feature extraction → CSV dataset → ML classifier. This is exactly how BearingIQ was built.
+  <a href="BearingIQ_complete.html" style="color:var(--green);font-weight:700;margin-left:.5rem">→ Return to BearingIQ Dashboard</a>
+</div>
+
+</main>
+</div><!-- end main-wrap -->
+
+<script src="../js/signal-laboratory.js"></script>
+</body>
+</html>

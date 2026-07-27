@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Adviser — BearingIQ</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/adviser.css">
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<script src="../js/sidebar.js"></script>
+
+<!-- ── Main wrapper ─────────────────────────────────────────── -->
+<div class="main-wrapper" style="height:100vh; overflow:hidden">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">AI Maintenance Adviser</div>
+        <div class="topbar-breadcrumb">BearingIQ → Adviser</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-sm btn-ghost" id="btn-clear-chat">🧹 Clear Chat</button>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content" style="height:calc(100vh - 64px); overflow:hidden; padding-bottom:var(--sp-6)">
+
+    <div class="adviser-layout">
+
+      <!-- ── Left: Context Panel ──────────────────────────────── -->
+      <div class="context-panel anim-slide-left">
+        <div class="context-header">
+          <div class="context-header-title">
+            <span>🎛️</span> Current Sensor Context
+          </div>
+          <div class="context-header-sub">Set values before asking for advice</div>
+        </div>
+        
+        <div class="context-body">
+          <!-- Presets -->
+          <div>
+            <div class="adviser-presets-label">Load Example</div>
+            <div class="adviser-presets-grid" id="adviser-presets-grid">
+              <!-- Injected by adviser.js -->
+            </div>
+          </div>
+
+          <!-- Sliders -->
+          <div class="quick-inputs" id="context-sliders">
+            <!-- Injected by adviser.js -->
+          </div>
+
+          <button class="btn-analyse" id="btn-analyse">
+            🔍 Run Full Analysis
+          </button>
+
+          <!-- Result mini display -->
+          <div class="current-context">
+            <div class="current-context-label">Detected State</div>
+            <div id="current-context-display">
+              <div style="font-size:.78rem;color:var(--clr-text-muted);text-align:center;padding:1rem">
+                No analysis run yet
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Right: Chat Panel ────────────────────────────────── -->
+      <div class="chat-panel anim-fade-in delay-2">
+        
+        <div class="chat-header">
+          <div class="chat-header-left">
+            <div class="adviser-avatar">🤖</div>
+            <div>
+              <div class="adviser-name">BearingIQ Expert System</div>
+              <div class="adviser-online">
+                <span style="width:8px;height:8px;background:var(--clr-normal);border-radius:50%"></span>
+                Online — Ready to analyze
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <!-- Chat bubbles injected here -->
+        </div>
+
+        <div class="chat-input-bar">
+          <div class="chat-quick-questions" id="quick-questions">
+            <!-- Quick questions injected here -->
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" class="chat-input" 
+                   placeholder="Ask about replacement, root cause, safety...">
+            <button class="btn-send" id="btn-send" title="Send message">↗️</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/main.js?v=2"></script>
+<script src="../js/adviser.js?v=2"></script>
+</body>
+</html>
