@@ -21,6 +21,7 @@ document.write(`
     <a href="live-simulation-page.html" class="nav-item" id="nav-live" data-page="live-simulation-page"><span class="nav-item-icon">⚡</span>Live Simulation<span class="nav-badge" style="background:#10B981;color:white">LIVE</span></a>
     <a href="ai-features.html" class="nav-item" id="nav-ai" data-page="ai-features"><span class="nav-item-icon">🧠</span>AI Features Lab<span class="nav-badge" style="background:#8B5CF6;color:white">AI</span></a>
     <a href="signal-pipeline.html" class="nav-item" id="nav-pipe" data-page="signal-pipeline"><span class="nav-item-icon">🏭</span>Signal Pipeline<span class="nav-badge" style="background:#F59E0B;color:white">NEW</span></a>
+    <a href="model-insights.html" class="nav-item" id="nav-insights" data-page="model-insights"><span class="nav-item-icon">✨</span>Model Insights<span class="nav-badge" style="background:#F43F5E;color:white">NEW</span></a>
   </nav>
   <div class="sidebar-footer"><strong>BearingIQ v1.0</strong>CWRU Bearing Dataset · 48 kHz<br>Fully offline — no backend needed</div>
 </aside>

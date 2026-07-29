@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BearingIQ - Model Insights & Entropy</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* BASE LAYOUT */
+    :root{
+      --bg:#F0F4FF;--surf:#fff;--surf2:#F8FAFF;--brd:#E2E8F8;--brd2:#C7D2FE;
+      --pri:#4F46E5;--pril:#EEF2FF;--prid:#3730A3;
+      --green:#10B981;--greenl:#D1FAE5;--yellow:#F59E0B;--yellowl:#FEF3C7;
+      --orange:#F97316;--red:#EF4444;--redl:#FEE2E2;
+      --cyan:#06B6D4;--cyanl:#CFFAFE;
+      --violet:#8B5CF6;--blue:#3B82F6;
+      --tx:#0F172A;--muted:#64748B;--light:#94A3B8;
+      --r:12px;--rl:18px;--rx:24px;
+      --sh:0 1px 3px rgba(79,70,229,.07),0 1px 2px rgba(0,0,0,.05);
+      --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+      --sw:256px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;display:flex}
+    a{color:inherit;text-decoration:none}
+    
+    /* SIDEBAR */
+    .sidebar{
+      width:var(--sw);min-height:100vh;background:var(--surf);
+      border-right:2px solid var(--brd);position:fixed;left:0;top:0;
+      display:flex;flex-direction:column;z-index:100;box-shadow:var(--sh)
+    }
+    .sidebar-logo{padding:1.5rem;border-bottom:2px solid var(--brd);display:flex;align-items:center;gap:.75rem}
+    .logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--pri),#7C3AED);border-radius:10px;
+      display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;}
+    .logo-name{font-weight:900;font-size:1.15rem;color:var(--pri);display:block}
+    .logo-sub{font-size:.65rem;color:var(--muted);font-weight:600;}
+    .sidebar-nav{flex:1;padding:.75rem;display:flex;flex-direction:column;gap:2px;}
+    .nav-label{font-size:.62rem;font-weight:700;color:var(--light);letter-spacing:1px;text-transform:uppercase;padding:.75rem}
+    .nav-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border-radius:var(--r);font-size:.85rem;font-weight:500;color:var(--muted);text-decoration:none;transition:all .15s;border-left:3px solid transparent;}
+    .nav-item:hover{background:var(--pril);color:var(--pri);border-left-color:var(--pri)}
+    .nav-badge{margin-left:auto;background:var(--pri);color:#fff;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:20px}
+    .sidebar-footer{padding:1rem 1.5rem;border-top:2px solid var(--brd);font-size:.72rem;color:var(--light)}
+    
+    /* MAIN & TOPBAR */
+    .main-wrap{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+    .topbar{background:var(--surf);border-bottom:2px solid var(--brd);padding:0 2rem;height:62px;
+      display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh)}
+    .topbar-title{font-size:1.05rem;font-weight:700}
+    .topbar-crumb{font-size:.75rem;color:var(--muted)}
+
+    /* Specific styles for this premium page */
+    .insights-hero {
+      background: linear-gradient(135deg, #0F172A, #1E1B4B, #312E81);
+      border-radius: 16px;
+      padding: 3rem 2.5rem;
+      color: white;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(49, 46, 129, 0.4);
+    }
+    .insights-hero::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%; width: 200%; height: 200%;
+      background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .insights-title { font-size: 2.2rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+    .insights-subtitle { color: #A5B4FC; font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(226, 232, 248, 0.8);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      transition: transform 0.2s;
+    }
+    .glass-card:hover { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(0,0,0,0.06); }
+    
+    .card-title-badge {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+    
+    .math-formula {
+      background: #F8FAFF;
+      border-left: 4px solid #6366F1;
+      padding: 1.5rem;
+      border-radius: 0 12px 12px 0;
+      font-family: var(--mono);
+      font-size: 1.25rem;
+      color: #1E293B;
+      margin: 1.5rem 0;
+      text-align: center;
+      font-weight: 700;
+    }
+    
+    .entropy-box {
+      background: #F1F5F9;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      border: 1px solid #E2E8F0;
+    }
+    .entropy-val {
+      font-size: 2rem;
+      font-weight: 900;
+      margin-top: 0.5rem;
+    }
+    
+    .prob-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .prob-label { width: 90px; font-size: 0.8rem; font-weight: 600; color: #475569; }
+    .prob-bar-container { flex: 1; height: 12px; background: #E2E8F0; border-radius: 6px; overflow: hidden; margin: 0 1rem; }
+    .prob-bar { height: 100%; border-radius: 6px; }
+    .prob-pct { width: 40px; font-size: 0.8rem; font-family: var(--mono); font-weight: 700; text-align: right; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<script src="../js/sidebar.js"></script>
+
+<!-- MAIN -->
+<div class="main-wrap">
+
+  <!-- TOPBAR -->
+  <header class="topbar" id="topbar">
+    <div>
+      <div class="topbar-title">Model Insights & Information Theory</div>
+      <div class="topbar-crumb">BearingIQ &rarr; Labs & Tools &rarr; Insights</div>
+    </div>
+  </header>
+
+  <div class="page active" style="padding: 1.5rem">
+    
+    <!-- Hero Banner -->
+    <div class="insights-hero">
+      <div class="card-title-badge" style="background: rgba(99, 102, 241, 0.2); color: #C4B5FD; border: 1px solid rgba(99, 102, 241, 0.4);">Advanced Analytics</div>
+      <h1 class="insights-title">Inside the Black Box</h1>
+      <p class="insights-subtitle">Understand exactly which physical features drive the AI's decisions, and learn how Information Theory measures the model's true confidence using Entropy.</p>
+    </div>
+
+    <!-- Feature Importance Section -->
+    <section class="glass-card" style="margin-bottom: 2rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div style="max-width: 50%;">
+          <div class="card-title-badge" style="background: #ECFDF5; color: #059669;">1. Global Explanability</div>
+          <h2 style="font-size: 1.5rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Feature Importance (Random Forest)</h2>
+          <p style="font-size: 0.9rem; color: #475569; line-height: 1.6;">
+            When the Random Forest model is trained, it tracks how much each physical feature contributes to reducing uncertainty (Gini Impurity) across its 200 decision trees. 
+            Features with higher importance scores are the most critical for accurately diagnosing bearing faults.
+          </p>
+        </div>
+        <div style="background: #F8FAFF; padding: 1rem; border-radius: 12px; border: 1px solid #E2E8F8; width: 40%;">
+          <h3 style="font-size: 0.85rem; font-weight: 800; color: #1E293B; margin-bottom: 0.5rem;">Key Takeaway</h3>
+          <p style="font-size: 0.8rem; color: #64748B; line-height: 1.5;">
+            <strong>RMS</strong> and <strong>Kurtosis</strong> dominate the decision-making process. This perfectly aligns with bearing physics: RMS measures the overall vibrational energy (severity of damage), while Kurtosis detects the sharp, impulsive shocks characteristic of localized cracks.
+          </p>
+        </div>
+      </div>
+      
+      <div style="height: 350px; position: relative;">
+        <canvas id="featureImportanceChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Information Theory (Entropy) Section -->
+    <section class="glass-card">
+      <div class="card-title-badge" style="background: #EEF2FF; color: #4338CA;">2. Decision Confidence</div>
+      <h2 style="font-size: 1.5rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Information Theory: Shannon Entropy</h2>
+      <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; max-width: 800px;">
+        Most machine learning projects simply look at the highest probability output. However, by applying <strong>Shannon Entropy</strong> from Information Theory, we can mathematically quantify the <em>uncertainty</em> across the entire probability distribution. 
+      </p>
+      
+      <div class="math-formula">
+        <i>H</i> = - &sum; <i>p<sub>i</sub></i> &middot; log<sub>2</sub>(<i>p<sub>i</sub></i>)
+      </div>
+
+      <div class="grid-2">
+        <!-- Example 1: Low Entropy -->
+        <div class="entropy-box" style="border-top: 4px solid #10B981;">
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: #0F172A; margin-bottom: 1rem;">Example A: High Confidence</h3>
+          
+          <div class="prob-row">
+            <div class="prob-label">Ball Fault</div>
+            <div class="prob-bar-container"><div class="prob-bar" style="width: 99%; background: #10B981;"></div></div>
+            <div class="prob-pct">99%</div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">Outer Race</div>
+            <div class="prob-bar-container"><div class="prob-bar" style="width: 1%; background: #94A3B8;"></div></div>
+            <div class="prob-pct">1%</div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label" style="color:transparent">Other</div>
+            <div class="prob-bar-container" style="background:transparent"><div class="prob-bar" style="width: 0%;"></div></div>
+            <div class="prob-pct" style="color:transparent">0%</div>
+          </div>
+
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #CBD5E1;">
+            <div style="font-size: 0.8rem; color: #64748B; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em;">Calculated Entropy</div>
+            <div class="entropy-val" style="color: #10B981;">0.12 <span style="font-size: 1rem; font-weight: 600; color: #94A3B8;">bits</span></div>
+            <p style="font-size: 0.8rem; color: #475569; margin-top: 0.5rem; line-height: 1.5;">
+              <strong>Low Entropy &rarr; Model Confident.</strong> The model is virtually certain of its decision. Only a tiny fraction of a bit is needed to encode the uncertainty.
+            </p>
+          </div>
+        </div>
+
+        <!-- Example 2: High Entropy -->
+        <div class="entropy-box" style="border-top: 4px solid #F59E0B;">
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: #0F172A; margin-bottom: 1rem;">Example B: Uncertainty (Noise)</h3>
+          
+          <div class="prob-row">
+            <div class="prob-label">Ball Fault</div>
+            <div class="prob-bar-container"><div class="prob-bar" style="width: 41%; background: #F59E0B;"></div></div>
+            <div class="prob-pct">41%</div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">Outer Race</div>
+            <div class="prob-bar-container"><div class="prob-bar" style="width: 39%; background: #3B82F6;"></div></div>
+            <div class="prob-pct">39%</div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">Inner Race</div>
+            <div class="prob-bar-container"><div class="prob-bar" style="width: 20%; background: #8B5CF6;"></div></div>
+            <div class="prob-pct">20%</div>
+          </div>
+
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #CBD5E1;">
+            <div style="font-size: 0.8rem; color: #64748B; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em;">Calculated Entropy</div>
+            <div class="entropy-val" style="color: #F59E0B;">1.55 <span style="font-size: 1rem; font-weight: 600; color: #94A3B8;">bits</span></div>
+            <p style="font-size: 0.8rem; color: #475569; margin-top: 0.5rem; line-height: 1.5;">
+              <strong>High Entropy &rarr; Model Uncertain.</strong> The probability mass is spread out. Even though "Ball Fault" won, the high entropy (1.55 bits) warns the engineer of severe ambiguity.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="../js/model-insights.js"></script>
+</body>
+</html>
